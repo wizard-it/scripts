@@ -17,6 +17,7 @@ SED=$(whereis sed | awk '{print $2}')
 MYSQL=$(whereis mysql | awk '{print $2}')
 MYSQLSHOW=$(whereis mysqlshow | awk '{print $2}')
 MYSQLDUMP=$(whereis mysqldump | awk '{print $2}')
+TAR=$(whereis tar | awk '{print $2}')
 
 
 #######################
@@ -36,7 +37,8 @@ Usage:
 -p|--db-password        - database password for non-file types
 -d|--db-name            - database name for non-file types
 -s|--source             - location of file data for file type
--o|--output             - destination of backup (default: /tmp)
+-o|--output             - destination of backup
+-T|--temp               - temp dir for backup files (default: /tmp)
 --help                  - print this help message
 --debug                 - print result information and exit
 
@@ -69,7 +71,6 @@ function checkDestination() {
             exit 1
         fi
     fi
-
 }
 
 function checkMysql {
@@ -77,15 +78,15 @@ function checkMysql {
         echo "Syntax error! Please, use this function like this one: checkMysql <db name> <db host> <db port> <db user> <db password>"
         exit 1
     fi
-    if [ -z "${MYSQL}" ]; then
+    if [ -z "$MYSQL" ]; then
         echo "Can't find MYSQL! Please check mysql/mariadb pkg installation. Aborting..."
         exit 1
     fi
-    if [ -z "${MYSQLSHOW}" ]; then
+    if [ -z "$MYSQLSHOW" ]; then
         echo "Can't find MYSQLSHOW! Please check mysql/mariadb pkg installation. Aborting..."
         exit 1
     fi
-    if [ -z "${MYSQLDUMP}" ]; then
+    if [ -z "$MYSQLDUMP" ]; then
         echo "Can't find MYSQLDUMP! Please check mysql/mariadb pkg installation. Aborting..."
         exit 1
     fi
@@ -96,7 +97,7 @@ function checkMysql {
     TARGETPWD=$5
 
 # debug string
-#    echo "DB type:$DBTYPE DB name:$TARGETNAME DB host:$TARGETHOST DB port:$TARGETPORT DB user:$TARGETUSER DB password:$TARGETPWD"
+#    echo "DB name:$TARGETNAME DB host:$TARGETHOST DB port:$TARGETPORT DB user:$TARGETUSER DB password:$TARGETPWD"
     echo "Checking database $TARGETNAME ..."
     DBCHECK=$("${MYSQLSHOW}" -u"${TARGETUSER}" -p"${TARGETPWD}" -h "${TARGETHOST}" -P "${TARGETPORT}" "${TARGETNAME}" 2>&1)
     if [[ $DBCHECK == *"Database: ${TARGETNAME}"* ]]; then
@@ -113,14 +114,54 @@ function checkMysql {
         if [[ $DBCHECK == *"Access denied for user"* ]]; then
             echo "Access denied for $TARGETUSER !\nPlease, check connection details. Aborting..."
             exit 1
-        fi      
+        fi
         if [[ $DBCHECK == *"Unknown database"* ]]; then
             echo "Database $TARGETNAME does not exist!\nPlease, check connection details. Aborting..."
             exit 1
-        fi       
+        fi
     fi
-# debug string
-#    echo "DBCHECK:$DB_CHECK"
+}
+
+function checkParam() {
+    case "$TYPE" in
+        "mysql"|"mariadb")
+            if [ -z "$DB_USER" ]; then echo "Database user is empty. Use --db-user to provide it. Aborting..."; exit 1; fi
+            if [ -z "$DB_PASS" ]; then echo "Database password is empty. It is not secure! Use --db-password to provide it."; fi
+            if [ -z "$DB_HOST" ]; then echo "Database host is empty. Use --db-host to provide it. Aborting..."; exit 1; fi
+            if [ -z "$DB_NAME" ]; then echo "Database name is empty. Use --db-name to provide it. Aborting..."; exit 1; fi
+            if [ -z "$DB_PORT" ]; then echo "Database port is empty. Use --db-port to provide it. Using 3306 as default."; fi
+            if [ -z "$DST" ]; then echo "Destination dir is empty. Use --output to provide it. Aborting..."; exit 1; fi
+            if [ -z "$TMP" ]; then echo "Temp dir is empty. Use --temp to provide it. Using default /tmp."; fi
+            ;;
+        "file")
+            if [ -z "$SRC" ]; then echo "Source dir is empty. Use --source to provide it. Aborting..."; exit 1; fi
+            if [ -z "$DST" ]; then echo "Destination dir is empty. Use --output to provide it. Aborting..."; exit 1; fi
+            if [ -z "$TMP" ]; then echo "Temp dir is empty. Use --temp to provide it. Using default /tmp."; fi
+            ;;
+        *)
+            echo "Backup type is unknown. Use --type to provide it.\nUse --help for examples. Aborting..."
+            exit 1
+            ;;
+    esac
+}
+
+function backupMysql() {
+    if [ -z "$TAR" ]; then
+        echo "Can't find TAR! Please check tar installation. Aborting..."
+        exit 1
+    fi
+    if [ -z "$TMP" ]; then
+        TMP="/tmp"
+    fi
+# Create dump in tmp folder
+    $MYSQLDUMP --column-statistics=0 -u"$DB_USER" -p"$DB_PASS" -h "$DB_HOST" -P "$DB_PORT" "$DB_NAME" > "$TMP"/db-"$DB_NAME"-"$TIMESTAMP".sql
+    if [ ! $? -eq 0 ]; then echo "[WARN] Creating dump problem..."; fi
+# Archiving data
+    $TAR -czf "$TMP"/db-"$DB_NAME"-"$TIMESTAMP".tar.gz -C "$TMP" db-"$DB_NAME"-"$TIMESTAMP".sql
+    if [ ! $? -eq 0 ]; then echo "[WARN] Creating archive problem..."; fi
+# Copy archive to destination folder
+    cp "$TMP"/db-"$DB_NAME"-"$TIMESTAMP".tar.gz "$DST"/db-"$DB_NAME"-"$TIMESTAMP".tar.gz
+    if [ ! $? -eq 0 ]; then echo "[WARN] Coping file problem..."; fi
 }
 
 
@@ -167,12 +208,20 @@ do
             DB_USER=$2
             shift 2
             ;;
+        "-p"|"--db-password")
+            DB_PASS=$2
+            shift 2
+            ;;
         "-s"|"--source")
             SRC=$2
             shift 2
             ;;
         "-o"|"--output")
-            DEST=$2
+            DST=$2
+            shift 2
+            ;;
+        "-T"|"--temp")
+            TMP=$2
             shift 2
             ;;
         "--debug")
@@ -238,15 +287,11 @@ then
         printf "%-20s : %-25s\n" "Database name" "$DB_NAME"
         printf "%-20s : %-25s\n" "Database user" "$DB_USER"
         printf "%-20s : %-25s\n" "Database password" "$DB_PASS"
-        printf "%-20s : %-25s\n" "Use compression" "$USE_COMPRESSION"
-        printf "%-20s : %-25s\n" "Compression utility" "$COMPRESS_WITH"
-        printf "%-20s : %-25s\n" "Old copies count" "$ROTATION"
+        printf "%-20s : %-25s\n" "Type of backup" "$TYPE"
+        printf "%-20s : %-25s\n" "Source" "$SRC"
+        printf "%-20s : %-25s\n" "Destination" "$DEST"
         printf "%-20s : %-25s\n" "Logfile location" "$LOGFILE"
         printf "%-20s : %-25s\n" "Temp directory" "$TMP"
-        printf "%-20s : %-25s\n" "Final distination" "$DEST"
-        printf "%-20s : %-25s\n" "Backup utility" "$B_UTIL"
-        if ! [[ "$DB_ONLY" ]]; then printf "%-20s : %-30s\n" "Zabbix catalogs" "$(join ', ' "${ZBX_CATALOGS[@]}")"; fi
-        if [[ "$EXCLUDE_TABLES" ]]; then printf "%-20s : %-30s\n" "Exclude tables" "$EXCLUDE_TABLES"; fi
         exit 0
 fi
 
