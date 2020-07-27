@@ -18,6 +18,12 @@ MYSQL=$(whereis mysql | awk '{print $2}')
 MYSQLSHOW=$(whereis mysqlshow | awk '{print $2}')
 MYSQLDUMP=$(whereis mysqldump | awk '{print $2}')
 TAR=$(whereis tar | awk '{print $2}')
+# Default params
+HOST=$(hostname)
+TMP="/tmp"
+DEBUG="NO"
+DB_PORT="3306"
+ARC_NAME="fsbackup"
 
 
 #######################
@@ -61,7 +67,7 @@ function printDebug() {
     printf "%-20s : %-25s\n" "Database password" "$DB_PASS"
     printf "%-20s : %-25s\n" "Type of backup" "$TYPE"
     printf "%-20s : %-25s\n" "Source" "$SRC"
-    printf "%-20s : %-25s\n" "Destination" "$DEST"
+    printf "%-20s : %-25s\n" "Destination" "$DST"
     printf "%-20s : %-25s\n" "Archive name" "$ARC_NAME"
     printf "%-20s : %-25s\n" "Temp directory" "$TMP"
     exit 0
@@ -104,6 +110,9 @@ function printError() {
             ;;
         "m7")
             echo "Database "$DB_NAME" does not exist! Please, check connection details. Aborting..."
+            ;;
+        "m8")
+            echo "This host "$HOST" is not allowed to connect to SQL server "$DB_HOST"! Please, check permissons. Aborting..."
             ;;
         "t1")
             echo "TMP dir "$TMP" does not exist! Trying to create..."
@@ -164,6 +173,7 @@ function printError() {
             ;;
         *)
             echo "Unknown error."
+    esac
 }
 
 function checkTmp() {
@@ -202,6 +212,7 @@ function checkMysql {
         if [[ $DBCHECK == *"Unknown MySQL server host"* ]]; then printError m4; exit 1; fi
         if [[ $DBCHECK == *"connect to local MySQL server"* ]]; then printError m5; exit 1; fi
         if [[ $DBCHECK == *"Access denied for user"* ]]; then printError m6; exit 1; fi
+        if [[ $DBCHECK == *"is not allowed to connect"* ]]; then printError m8; exit 1; fi
         if [[ $DBCHECK == *"Unknown database"* ]]; then printError m7; exit 1; fi
     fi
 }
@@ -331,7 +342,8 @@ do
             shift 2
             ;;
         "--debug")
-            printDebug
+            DEBUG="YES"
+            shift
             ;;
         "--help")
             printHelp
@@ -342,22 +354,10 @@ do
             ;;
     esac
 done
-# Check if no params set
-if [ $# -eq 0 ]; then printHelp; fi
+# Stop for debugging
+if [[ "$DEBUG" == "YES" ]]; then printDebug; fi
 # Check input params
 checkParam
-# Set default params
-if [ -z "TMP" ]; then TMP="/tmp"; fi
-case "$TYPE" in
-    "mysql"|"mariadb")
-        if [ -z "$DB_PORT" ]; then DB_PORT="3306"; fi
-        ;;
-    "file")
-        if [ -z "$ARC_NAME" ]; then ARC_NAME="fsbackup"; fi
-        ;;
-    *)
-        ;;
-esac
 # Check tmp folder
 checkTmp
 # Check destination
@@ -365,14 +365,16 @@ checkDestination
 # Backuping
 case "$TYPE" in
     "mysql"|"mariadb")
-        if [ -z "$DB_PORT" ]; then DB_PORT="3306"; fi
+        checkMysql
+        backupMysql
         ;;
     "file")
-        if [ -z "$ARC_NAME" ]; then ARC_NAME="fsbackup"; fi
+        checkSource
+        backupFile
         ;;
     *)
         ;;
 esac
-
-
+# Some cleaning
+cleanTmp
 exit 0
