@@ -268,6 +268,7 @@ function backupFile() {
 function cleanTmp() {
     case "$TYPE" in
         "mysql"|"mariadb")
+            rm -rf "$TMP"/db-"$DB_NAME"-"$TIMESTAMP".sql
             rm -rf "$TMP"/db-"$DB_NAME"-"$TIMESTAMP".tar.gz
             ;;
         "file")
