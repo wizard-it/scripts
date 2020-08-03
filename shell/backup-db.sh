@@ -17,6 +17,8 @@ SED=$(whereis sed | awk '{print $2}')
 MYSQL=$(whereis mysql | awk '{print $2}')
 MYSQLSHOW=$(whereis mysqlshow | awk '{print $2}')
 MYSQLDUMP=$(whereis mysqldump | awk '{print $2}')
+PSQL=$(whereis psql | awk '{print $2}')
+PGDUMP=$(whereis pg_dump | awk '{print $2}')
 TAR=$(whereis tar | awk '{print $2}')
 # Default params
 HOST=$(hostname)
@@ -35,7 +37,7 @@ echo "
 backup-database, version: $VERSION
 (c) Kornilov Alexander, 2020
 Usage:
--t|--type               - type of database location: mysql|mariadb|file
+-t|--type               - type of database location: mysql|mariadb|postgresql|file
 -h|--db-host            - database hostname or ip address for non-file types
 -P|--port               - database port number for non-file types (default: 3306)
 -u|--db-user            - database username for non-file types
@@ -113,6 +115,18 @@ function printError() {
             ;;
         "m8")
             echo "This host "$HOST" is not allowed to connect to SQL server "$DB_HOST"! Please, check permissons. Aborting..."
+            ;;
+        "p1")
+            echo "Can't find PSQL! Please check postgresql pkg installation. Aborting..."
+            ;;
+        "p2")
+            echo "Can't find PGDUMP! Please check postgresql pkg installation. Aborting..."
+            ;;
+        "p3")
+            echo "Can't connect to server "$DB_HOST" ! Please, check connection details. Aborting..."
+            ;;
+        "p7")
+            echo "Database "$DB_NAME" does not exist! Please, check connection details. Aborting..."
             ;;
         "t1")
             echo "TMP dir "$TMP" does not exist! Trying to create..."
@@ -217,6 +231,19 @@ function checkMysql {
     fi
 }
 
+function checkPostgresql {
+    if [ -z "$PSQL" ]; then printError p1; exit 1; fi
+    if [ -z "$PGDUMP" ]; then echo printError p2; exit 1; fi
+    echo "Checking database $DB_NAME ..."
+    DBCHECK=$(PGPASSWORD="$DB_PASS" "${PSQL}" -U "$DB_USER" -h "$DB_HOST" -d "$DB_NAME" -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'" 2>&1)
+    if [[ $DBCHECK == *"could not connect to server"* ]]; then printError p3; exit 1; fi
+    if [[ $DBCHECK == *"connect to local MySQL server"* ]]; then printError m5; exit 1; fi
+    if [[ $DBCHECK == *"Access denied for user"* ]]; then printError m6; exit 1; fi
+    if [[ $DBCHECK == *"is not allowed to connect"* ]]; then printError m8; exit 1; fi
+    if [[ $DBCHECK == *"does not exist"* ]]; then printError p7; exit 1; fi
+
+}
+
 function checkParam() {
     case "$TYPE" in
         "mysql"|"mariadb")
@@ -296,6 +323,9 @@ do
                 "mysql"|"mariadb")
                     TYPE="mysql"
                     ;;
+                "postgresql")
+                    TYPE="postgresql"
+                    ;;
                 "file")
                     TYPE="file"
                     ;;
@@ -366,6 +396,10 @@ checkDestination
 # Backuping
 case "$TYPE" in
     "mysql"|"mariadb")
+        checkMysql
+        backupMysql
+        ;;
+    "postgresql")
         checkMysql
         backupMysql
         ;;
