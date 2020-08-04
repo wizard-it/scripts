@@ -24,7 +24,6 @@ TAR=$(whereis tar | awk '{print $2}')
 HOST=$(hostname)
 TMP="/tmp"
 DEBUG="NO"
-DB_PORT="3306"
 ARC_NAME="fsbackup"
 
 
@@ -39,7 +38,7 @@ backup-database, version: $VERSION
 Usage:
 -t|--type               - type of database location: mysql|mariadb|postgresql|file
 -h|--db-host            - database hostname or ip address for non-file types
--P|--port               - database port number for non-file types (default: 3306)
+-P|--port               - database port number for non-file types (default: 3306|5432)
 -u|--db-user            - database username for non-file types
 -p|--db-password        - database password for non-file types
 -d|--db-name            - database name for non-file types
@@ -125,7 +124,13 @@ function printError() {
         "p3")
             echo "Can't connect to server "$DB_HOST" ! Please, check connection details. Aborting..."
             ;;
-        "p7")
+        "p4")
+            echo "Access denied for "$DB_USER" ! Please, check connection details. Aborting..."
+            ;;
+        "p5")
+            echo "Cant read database "$DB_NAME" ! Please, check connection details. Aborting..."
+            ;;
+        "p6")
             echo "Database "$DB_NAME" does not exist! Please, check connection details. Aborting..."
             ;;
         "t1")
@@ -165,7 +170,7 @@ function printError() {
             echo "Database user is empty. Use --db-user to provide it. Aborting..."
             ;;
         "c2")
-            echo "Database password is empty. It is not secure! Use --db-password to provide it."
+            echo "Database password is empty. It is not secure! Use --db-password to provide it. Aborting..."
             ;;
         "c3")
             echo "Database host is empty. Use --db-host to provide it. Aborting..."
@@ -175,6 +180,9 @@ function printError() {
             ;;
         "c5")
             echo "Database port is empty. Use --db-port to provide it. Using 3306 as default."
+            ;;
+        "c6")
+            echo "Database port is empty. Use --db-port to provide it. Using 5432 as default."
             ;;
         "w1")
             echo "[WARN] Creating dump problem..."
@@ -237,21 +245,29 @@ function checkPostgresql {
     echo "Checking database $DB_NAME ..."
     DBCHECK=$(PGPASSWORD="$DB_PASS" "${PSQL}" -U "$DB_USER" -h "$DB_HOST" -d "$DB_NAME" -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'" 2>&1)
     if [[ $DBCHECK == *"could not connect to server"* ]]; then printError p3; exit 1; fi
-    if [[ $DBCHECK == *"connect to local MySQL server"* ]]; then printError m5; exit 1; fi
-    if [[ $DBCHECK == *"Access denied for user"* ]]; then printError m6; exit 1; fi
-    if [[ $DBCHECK == *"is not allowed to connect"* ]]; then printError m8; exit 1; fi
-    if [[ $DBCHECK == *"does not exist"* ]]; then printError p7; exit 1; fi
-
+    if [[ $DBCHECK == *"password authentication failed"* ]]; then printError p4; exit 1; fi
+    if [[ $DBCHECK == *"(0 rows)"* ]]; then printError p5; exit 1; fi
+    if [[ $DBCHECK == *"does not exist"* ]]; then printError p6; exit 1; fi
+    echo "Checked!"
 }
 
 function checkParam() {
     case "$TYPE" in
         "mysql"|"mariadb")
             if [ -z "$DB_USER" ]; then printError c1; exit 1; fi
-            if [ -z "$DB_PASS" ]; then printError c2; fi
+            if [ -z "$DB_PASS" ]; then printError c2; exit 1; fi
             if [ -z "$DB_HOST" ]; then printError c3; exit 1; fi
             if [ -z "$DB_NAME" ]; then printError c4; exit 1; fi
             if [ -z "$DB_PORT" ]; then printError c5; fi
+            if [ -z "$DST" ]; then printError d4; exit 1; fi
+            if [ -z "$TMP" ]; then printError t4; fi
+            ;;
+        "postgresql")
+            if [ -z "$DB_USER" ]; then printError c1; exit 1; fi
+            if [ -z "$DB_PASS" ]; then printError c2; exit 1; fi
+            if [ -z "$DB_HOST" ]; then printError c3; exit 1; fi
+            if [ -z "$DB_NAME" ]; then printError c4; exit 1; fi
+            if [ -z "$DB_PORT" ]; then printError c6; fi
             if [ -z "$DST" ]; then printError d4; exit 1; fi
             if [ -z "$TMP" ]; then printError t4; fi
             ;;
@@ -271,8 +287,23 @@ function checkParam() {
 function backupMysql() {
     if [ -z "$TAR" ]; then printError a2; exit 1; fi
     if [ -z "$TMP" ]; then TMP="/tmp"; fi
+    if [ -z "$DB_PORT" ]; then DB_PORT="3306"; fi
 # Create dump in tmp folder
     $MYSQLDUMP --column-statistics=0 -u"$DB_USER" -p"$DB_PASS" -h "$DB_HOST" -P "$DB_PORT" "$DB_NAME" > "$TMP"/db-"$DB_NAME"-"$TIMESTAMP".sql
+    if [ ! $? -eq 0 ]; then printError w1; fi
+# Coping and archiving data
+    $TAR -czf "$TMP"/db-"$DB_NAME"-"$TIMESTAMP".tar.gz -C "$TMP" db-"$DB_NAME"-"$TIMESTAMP".sql
+    if [ ! $? -eq 0 ]; then printError w2; fi
+    cp "$TMP"/db-"$DB_NAME"-"$TIMESTAMP".tar.gz "$DST"/db-"$DB_NAME"-"$TIMESTAMP".tar.gz
+    if [ ! $? -eq 0 ]; then printError w3; fi
+}
+
+function backupPostgresql() {
+    if [ -z "$TAR" ]; then printError a2; exit 1; fi
+    if [ -z "$TMP" ]; then TMP="/tmp"; fi
+    if [ -z "$DB_PORT" ]; then DB_PORT="5432"; fi
+# Create dump in tmp folder
+    PGPASSWORD="$DB_PASS" $PGDUMP -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "$DB_NAME" > "$TMP"/db-"$DB_NAME"-"$TIMESTAMP".sql
     if [ ! $? -eq 0 ]; then printError w1; fi
 # Coping and archiving data
     $TAR -czf "$TMP"/db-"$DB_NAME"-"$TIMESTAMP".tar.gz -C "$TMP" db-"$DB_NAME"-"$TIMESTAMP".sql
@@ -295,6 +326,10 @@ function backupFile() {
 function cleanTmp() {
     case "$TYPE" in
         "mysql"|"mariadb")
+            rm -rf "$TMP"/db-"$DB_NAME"-"$TIMESTAMP".sql
+            rm -rf "$TMP"/db-"$DB_NAME"-"$TIMESTAMP".tar.gz
+            ;;
+        "postgresql")
             rm -rf "$TMP"/db-"$DB_NAME"-"$TIMESTAMP".sql
             rm -rf "$TMP"/db-"$DB_NAME"-"$TIMESTAMP".tar.gz
             ;;
@@ -400,8 +435,8 @@ case "$TYPE" in
         backupMysql
         ;;
     "postgresql")
-        checkMysql
-        backupMysql
+        checkPostgresql
+        backupPostgresql
         ;;
     "file")
         checkSource
