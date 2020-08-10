@@ -76,6 +76,9 @@ function printDebug() {
 
 function printError() {
     case "$1" in
+        "g1")
+            echo "Syntax error! Please, use '--help' to show usage examples."
+            ;;
         "t1")
             echo "TMP dir "$TMP" does not exist! Trying to create..."
             ;;
@@ -261,7 +264,7 @@ do
             printHelp
             ;;
         *)
-            printError b4
+            printError g1
             exit 1
             ;;
     esac
