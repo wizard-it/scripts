@@ -199,6 +199,7 @@ function printError() {
 }
 
 function checkTmp() {
+    echo "$TIMESTAMP : Checking temp folder..."
     if [ -z "$TMP" ]; then TMP="/tmp"; fi
     if [ ! -d "$TMP" ]; then
         printError t1
@@ -209,11 +210,13 @@ function checkTmp() {
 }
 
 function checkSource() {
+    echo "$TIMESTAMP : Checking source folder..."
     if [ ! -d "$SRC" ]; then printError s1; exit 1; fi
     if [ ! -r "$SRC" ]; then printError s2; exit 1; fi
 }
 
 function checkDestination() {
+    echo "$TIMESTAMP : Checking destination folder..."
     if [ ! -d "$DST" ]; then
         printError d1
         mkdir -p $DST
@@ -223,6 +226,7 @@ function checkDestination() {
 }
 
 function checkMysql {
+    echo "$TIMESTAMP : Checking mysql db..."
     if [ -z "$MYSQL" ]; then printError m1; exit 1; fi
     if [ -z "$MYSQLSHOW" ]; then echo printError m2; exit 1; fi
     if [ -z "$MYSQLDUMP" ]; then echo printError m3; exit 1; fi
@@ -240,6 +244,7 @@ function checkMysql {
 }
 
 function checkPostgresql {
+    echo "$TIMESTAMP : Checking postgresql db..."
     if [ -z "$PSQL" ]; then printError p1; exit 1; fi
     if [ -z "$PGDUMP" ]; then echo printError p2; exit 1; fi
     echo "Checking database $DB_NAME ..."
@@ -285,6 +290,7 @@ function checkParam() {
 }
 
 function backupMysql() {
+    echo "$TIMESTAMP : Backuping mysql db..."
     if [ -z "$TAR" ]; then printError a2; exit 1; fi
     if [ -z "$TMP" ]; then TMP="/tmp"; fi
     if [ -z "$DB_PORT" ]; then DB_PORT="3306"; fi
@@ -299,6 +305,7 @@ function backupMysql() {
 }
 
 function backupPostgresql() {
+    echo "$TIMESTAMP : Backuping postgresql db..."
     if [ -z "$TAR" ]; then printError a2; exit 1; fi
     if [ -z "$TMP" ]; then TMP="/tmp"; fi
     if [ -z "$DB_PORT" ]; then DB_PORT="5432"; fi
@@ -313,6 +320,7 @@ function backupPostgresql() {
 }
 
 function backupFile() {
+    echo "$TIMESTAMP : Backuping files..."
     if [ -z "$TAR" ]; then printError a2; exit 1; fi
     if [ -z "$TMP" ]; then TMP="/tmp"; fi
     if [ -z "$ARC_NAME" ]; then ARC_NAME="fsbackup"; fi
@@ -324,6 +332,7 @@ function backupFile() {
 }
 
 function cleanTmp() {
+    echo "$TIMESTAMP : Cleaning temp folder..."
     case "$TYPE" in
         "mysql"|"mariadb")
             rm -rf "$TMP"/db-"$DB_NAME"-"$TIMESTAMP".sql
