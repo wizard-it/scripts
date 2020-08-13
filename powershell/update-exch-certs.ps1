@@ -1,17 +1,16 @@
-function Update-ExchangeCertificates() {
+function Update-ExchangeCertificate() {
     <#
         .SYNOPSIS
-        Обновляет сертификаты на серверах Exchange
+        Обновляет сертификат на серверax Exchange
 
         .DESCRIPTION
-        Функция Update-ExchangeCertificates оформлена в виде командлета PowerShell и предоставляет администратору средства для обновления сертификатов на серверах Exchange.
+        Функция Update-ExchangeCertificates оформлена в виде командлета PowerShell и предоставляет администратору средства для обновления сертификатов на серверe Exchange.
 
         .EXAMPLE
-        Обновить сертификаты:
-            Create-ADUser -fullName "Достоевский Федор Михайлович" -JobTitle "Великий русский писатель" -OfficeNumber 42 -MailDatabase "Shuvoe Standard Users" -CreateOOF -InternetGroupName "web_allow_basic"
-
+        Обновить сертификат на сервере shv-vexch01.shuvoe.rg-rus.ru,shv-vexch02.shuvoe.rg-rus.ru:
+            Update-ExchangeCertificates -credPath "C:\TEMP\cred.xml" -certPath \\server1\share1\exchange.pfx -certPassword m@sterP@ssword -hostnames shv-vexch01.shuvoe.rg-rus.ru,shv-vexch02.shuvoe.rg-rus.ru
         .NOTES
-        Organization: JSC "Gedeon Richter-RUS"
+        Organization: AO "Gedeon Richter-RUS"
         Author: Kornilov Alexander
 
     #>
@@ -20,37 +19,44 @@ function Update-ExchangeCertificates() {
     Param (
     [switch]$version,    
     [Parameter (Mandatory=$true)]
-    [string]$username,
+    [string]$credPath,
     [Parameter (Mandatory=$true)]
-    [string]$password,
-    [Parameter (Mandatory=$true)]
-    [string]$hostname,
+    [array]$hostnames,
+    [string]$domain = "mail.rg-rus.ru",
     [Parameter (Mandatory=$true)]
     [string]$certPath,
     [Parameter (Mandatory=$true)]
     [string]$certPassword
     )
 
-    $pass = ConvertTo-SecureString $password -AsPlainText -Force
     $cerPass = ConvertTo-SecureString $certPassword -AsPlainText -Force
-    $credentials = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $username, $pass
-    $exSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos -Credential $credentials -AllowRedirection
+    $credentials = Import-CliXml -Path $credPath
+    
+    if ( -not (Test-Path -LiteralPath $credPath -PathType Leaf) ) { 
+        Write-Host "Can't read credentials from file $credPath . Aborting..."
+        Wait-Event -Timeout 2
+        exit    
+    }
 
     if ( -not (Test-Path -LiteralPath $certPath -PathType Leaf) ) { 
         Write-Host "Can't read new certificate. Aborting..."
-        Wait-Event -Timeout 5
+        Wait-Event -Timeout 2
         exit    
     }
-    if (!$exSession) { 
-        Write-Host "Can't connect to host, check creds. Aborting..."
-        Wait-Event -Timeout 5
-        exit
+
+    foreach ($server in $hostnames)
+    {
+        $exSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$server/PowerShell/ -Authentication Kerberos -Credential $credentials -AllowRedirection
+        if (!$exSession) { 
+            Write-Host "Can't connect to host $server, check creds. Skiping..."
+            Wait-Event -Timeout 2
+            continue
+        }
+        Import-Module (Import-PSSession $exSession -AllowClobber) -Global
+        $oldcert = Get-ExchangeCertificate -DomainName $domain
+        Remove-ExchangeCertificate -Thumbprint $oldcert.Thumbprint -Confirm:$false
+        Import-ExchangeCertificate -FileData ([Byte[]]$(Get-Content -Path $certpath -Encoding byte -ReadCount 0)) -Password $cerPass
     }
-
-    Import-Module (Import-PSSession $exSession -AllowClobber) -Global
-    $oldcert = Get-ExchangeCertificate -DomainName mail.rg-rus.ru
-    Remove-ExchangeCertificate -Thumbprint $oldcert.Thumbprint -Confirm:$false
-    Import-ExchangeCertificate -FileData ([Byte[]]$(Get-Content -Path $certpath -Encoding byte -ReadCount 0)) -Password $cerPass
-
+    
 }
 
