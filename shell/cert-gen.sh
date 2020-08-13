@@ -166,7 +166,7 @@ function checkDomains() {
 function updateCerbot() {
     if [ -z "$CERTBOT" ]; then printError c1; exit 1; fi
     echo "$TIMESTAMP : Start updating let's encrypt certificates..."
-    $CERTBOT renew
+    $CERTBOT renew ---preferred-challenges http --non-interactive
 }
 
 function createHaproxy() {
