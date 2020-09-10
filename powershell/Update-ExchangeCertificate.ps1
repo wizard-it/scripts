@@ -17,7 +17,7 @@ function Update-ExchangeCertificate() {
     
     [CmdLetBinding()]
     Param (
-    [switch]$version,    
+    [switch]$version,
     [Parameter (Mandatory=$true)]
     [string]$credPath,
     [Parameter (Mandatory=$true)]
