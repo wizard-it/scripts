@@ -26,7 +26,7 @@
     } catch {
         return "Policy $policyName is missed! Check policy is created and permissions to GPO."
     }
-    if ($gpo.WmiFilter) { $wmi = $gpo.WmiFilter } else { $wmi = "не применяются" }
+    if ($gpo.WmiFilter) { $wmi = $gpo.WmiFilter.Name } else { $wmi = "не применяются" }
     #### Генерация DOCX файла с отчетом ####
 #    $encoding = [Console]::OutputEncoding 
 #    [Console]::OutputEncoding = [System.Text.Encoding]::GetEncoding("1251")
