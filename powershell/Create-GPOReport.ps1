@@ -28,12 +28,13 @@
     }
     if ($gpo.WmiFilter) { $wmi = $gpo.WmiFilter } else { $wmi = "не применяются" }
     #### Генерация DOCX файла с отчетом ####
-    $encoding = [Console]::OutputEncoding 
+#    $encoding = [Console]::OutputEncoding 
 #    [Console]::OutputEncoding = [System.Text.Encoding]::GetEncoding("1251")
     [Microsoft.Office.Interop.Word.ApplicationClass]$WordApp = New-Object -ComObject word.application
     $WordApp.Visible = $false
     $Document = $WordApp.Documents.Add()
-    $WordApp.ActiveDocument.TextEncoding = [Microsoft.Office.Core.MsoEncoding]::msoEncodingUTF8#    $WordApp.ActiveDocument.SaveEncoding = [Microsoft.Office.Core.MsoEncoding]::msoEncodingUTF8
+    $WordApp.ActiveDocument.TextEncoding = [Microsoft.Office.Core.MsoEncoding]::msoEncodingUTF8
+    $WordApp.ActiveDocument.SaveEncoding = [Microsoft.Office.Core.MsoEncoding]::msoEncodingUTF8
     $Selection = $WordApp.Selection
     $Selection.Pagesetup.TopMargin = 50
 	$Selection.Pagesetup.LeftMargin = 50
