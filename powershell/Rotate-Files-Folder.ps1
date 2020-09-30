@@ -1,4 +1,4 @@
-function Rotate-Files-Folder() {
+﻿function Rotate-Files-Folder() {
     <#
         .SYNOPSIS
         Удаляет файлы страше указанной даты без резервного копирования
