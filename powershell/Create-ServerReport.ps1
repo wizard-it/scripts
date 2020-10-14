@@ -1,4 +1,19 @@
 ﻿function Create-ServerReport() {
+    <#
+        .SYNOPSIS
+        Составляет отчет по серверу с ОС Windows
+
+        .DESCRIPTION
+        Функция Create-ServerReport оформлена в виде командлета PowerShell и предоставляет администратору средство для генерации отчета по серверу
+
+        .EXAMPLE
+        Create-ServerReport -ComputerName shv-vdc01
+
+        .NOTES
+        Organization: AO "Gedeon Richter-RUS"
+        Author: Kornilov Alexander
+
+    #>
     param(
         [string]$ComputerName,
         [string]$Workdir = "D:\passports",

@@ -7,8 +7,8 @@
         Функция Rotate-Files-Folder оформлена в виде командлета PowerShell и предоставляет администратору средства для удаления файлов страше указанной даты.
 
         .EXAMPLE
-        :
-             Rotate-Files-Folder -rootPath "C:\TEMP" -days 2
+        Rotate-Files-Folder -rootPath "C:\TEMP" -days 2
+        
         .NOTES
         Organization: AO "Gedeon Richter-RUS"
         Author: Kornilov Alexander

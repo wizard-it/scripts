@@ -1,4 +1,19 @@
 ﻿function Create-ServerReportLinux() {
+    <#
+        .SYNOPSIS
+        Составляет отчет по серверу с ОС Linux. Внимание: для работы функции на целевой системе должны быть установлены пакеты util-linux, lshw, sudo; разрешено запускать lshw из под sudo без ввода пароля
+
+        .DESCRIPTION
+        Функция Create-ServerReportLinux оформлена в виде командлета PowerShell и предоставляет администратору средство для генерации отчета по серверу. Внимание: для работы функции на целевой системе должны быть установлены пакеты util-linux, lshw, sudo; разрешено запускать lshw из под sudo без ввода пароля
+
+        .EXAMPLE
+        Create-ServerReportLinux -ComputerName shv-vk8node01
+
+        .NOTES
+        Organization: AO "Gedeon Richter-RUS"
+        Author: Kornilov Alexander
+
+    #>
     param(
         [Parameter (Mandatory=$true)]
         [string]$ComputerName,
@@ -8,7 +23,7 @@
         [string[]]$ADCompProp = @('OperatingSystem','Description','Location','SerialNumber','DestinationIndicator','CanonicalName'),
         [switch]$SaveXML
     )
-
+    Write-Host -ForegroundColor Green "Внимание: для работы функции на целевой системе должны быть установлены пакеты util-linux, lshw, sudo; разрешено запускать lshw из под sudo без ввода пароля"
     [Microsoft.ActiveDirectory.Management.ADComputer[]]$Servers = Get-ADComputer -Identity $ComputerName -Properties $ADCompProp
     for ($j = 0; $j -lt $Servers.Count; $j++) {
     [Microsoft.ActiveDirectory.Management.ADComputer]$Server = $Servers[$j]
