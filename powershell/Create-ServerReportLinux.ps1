@@ -22,6 +22,7 @@
             [xml]$dataXml = $(Invoke-SSHCommand -Index 0 -Command "sudo lshw -xml").Output
             $osCpu = $(Invoke-SSHCommand -Index 0 -Command "lscpu -J").Output | ConvertFrom-Json
             $osDistrib = $(Invoke-SSHCommand -Index 0 -Command "hostnamectl | sed -n 's/Operating System: //p'").Output
+            $osMounts = $(Invoke-SSHCommand -Index 0 -Command "findmnt -R -D --list / --json").Output | ConvertFrom-Json
             $osNetwork = $dataXml.list.node.node | Where-Object {$_.class -eq "network"}
             $osMemory = $($dataXml.list.node.node | Where-Object {$_.id -eq "core"}).node | Where-Object {$_.class -eq "memory"}
             $osStorage = $($dataXml.list.node.node | Where-Object {$_.id -eq "core"}).node | Where-Object {$_.class -eq "storage"}
@@ -57,7 +58,7 @@
             }
 
             #region Определение роли сервера
-            switch ($Servers.Description) {
+            switch -wildcard ($Server.Description) {
                 "*Mail*" {$Role = "Сервер приложений MS Exchange."}
                 "*Domain*" {$Role = "Контроллер домена."}
                 "*DB*" {$Role = "Сервер баз данных."}
@@ -138,12 +139,16 @@
             [int]$osNicCount = 0
             foreach ($nic in $osNetwork) {
                 [System.Xml.XmlElement]$oXmlNet = $oXMLDocument.CreateElement("NetworkAdapter$($osNicCount)")
+                $ip = $nic.configuration.setting | Where-Object {$_.id -eq 'ip'} | Select-Object value -ExpandProperty value
+                if (!$ip) {
+                    Continue
+                }
                 $osNetworkMask = $(Invoke-SSHCommand -Index 0 -Command "ip addr show $($nic.logicalname) | sed -n 's/inet .*\///p' | sed -n 's/brd.*//p'").Output
                 $osDefRoute = $(Invoke-SSHCommand -Index 0 -Command "ip route | sed -n 's/default via//p' | sed -n 's/dev.*//p'").Output
                 $osDefRoute = $osDefRoute.Trim()
                 $osNetworkMask = $osNetworkMask.Trim()
                 $oXmlNet.SetAttribute("Description","$($nic.description)") | Out-Null
-                $oXmlNet.SetAttribute("IPAddress","$($nic.configuration.setting | Where-Object {$_.id -eq 'ip'} | Select-Object value -ExpandProperty value)") | Out-Null
+                $oXmlNet.SetAttribute("IPAddress","$($ip)") | Out-Null
                 $oXmlNet.SetAttribute("IPSubnet","$($osNetworkMask)") | Out-Null
                 $oXmlNet.SetAttribute("Gateway","$($osDefRoute)") | Out-Null
                 $oXmlNet.SetAttribute("MACAddress","$($nic.serial)") | Out-Null
@@ -170,6 +175,16 @@
                     $oXmlPhysicalDisk.SetAttribute("Size","$([math]::round($($($disk.size | Select-Object "#text" -ExpandProperty "#text")/1GB))) GB") | Out-Null
                     $oXmlPhysicalDisk.SetAttribute("Model","$($disk.product)") | Out-Null
                     $oXmlPhysicalDisk.SetAttribute("Interface","$($disk.businfo)") | Out-Null
+                    foreach ($vol in $disk.node) {
+                        if ($vol.description -like "*LVM*") {
+                            $lvm = "YES"
+                        }
+                    }
+                    if ($lvm -eq "YES") {
+                        $oXmlPhysicalDisk.SetAttribute("Raid","LVM") | Out-Null
+                    } else {
+                        $oXmlPhysicalDisk.SetAttribute("Raid","-") | Out-Null
+                    }
                     $oXmlPhysicalDisks.AppendChild($oXmlPhysicalDisk) | Out-Null
                     $oXmlStorage.AppendChild($oXmlPhysicalDisks) | Out-Null
                     $pDisk++
@@ -185,50 +200,44 @@
             # Логические диски
             [System.Xml.XmlElement]$oXmlLogicalDisks = $oXmlDocument.CreateElement("LogicalDisks")
             [int]$lDisk = 0
-            foreach ($type in $osStorage) {
-                $osDisks = $type.node | Where-Object {$_.class -eq "disk"}
-                foreach ($disk in $osDisks) {
-                    $osVolumes = $disk.node | Where-Object {$_.class -eq "volume"}
-                    foreach ($volume in $osVolumes) {
-                        [System.Xml.XmlElement]$oXmlLogicalDisk = $oXMLDocument.CreateElement("LogicalDisk$($lDisk)")
-                        $oXmlLogicalDisk.SetAttribute("DeviceID","$([string]$volume.logicalname)") | Out-Null
-                        $oXmlLogicalDisk.SetAttribute("Size","$([math]::round($volume.capacity/1Gb, 1)) GB") | Out-Null
-                        $oXmlLogicalDisk.SetAttribute("FileSystem","$($volume.configuration.setting | Where-Object {$_.id -eq "mount.fstype"} | Select-Object value -ExpandProperty value )") | Out-Null
-                        $oXmlLogicalDisk.SetAttribute("Label","-") | Out-Null
-                        $oXmlLogicalDisks.AppendChild($oXmlLogicalDisk) | Out-Null
-                        $oXmlStorage.AppendChild($oXmlLogicalDisks) | Out-Null
-                        $lDisk++
-                    }
-                }
+            $lDisks = $osMounts.filesystems | Where-Object {($_.fstype -notmatch "tmpfs|binfmt_misc|overlay|rpc_pipefs|proc|cgroup|sysfs|security|pstore|debugfs|configfs|devpts|autofs|nsfs|bpf|hugetlbfs|mqueue") -and ($_.size -ne $null)}
+            foreach ($volume in $lDisks) {
+                [System.Xml.XmlElement]$oXmlLogicalDisk = $oXMLDocument.CreateElement("LogicalDisk$($lDisk)")
+                $oXmlLogicalDisk.SetAttribute("DeviceID","$($volume.target)") | Out-Null
+                $oXmlLogicalDisk.SetAttribute("Size","$($volume.size)") | Out-Null
+                $oXmlLogicalDisk.SetAttribute("FileSystem","$($volume.fstype)") | Out-Null
+                $oXmlLogicalDisk.SetAttribute("Label","-") | Out-Null
+                $oXmlLogicalDisks.AppendChild($oXmlLogicalDisk) | Out-Null
+                $oXmlStorage.AppendChild($oXmlLogicalDisks) | Out-Null
+                $lDisk++
             }
             if ($lDisk -eq 0) {
                 $oXmlLogicalDisks.SetAttribute("Count","1") | Out-Null
             } else {
-                $oXmlLogicalDisks.SetAttribute("Count","$($lDisk)") | Out-Null
+                $oXmlLogicalDisks.SetAttribute("Count","$($lDisks.Count)") | Out-Null
             }
-            #endregion
 
-            #region IPMI XML
-#                if ($oWmiSystem.Model -ne "Virtual Machine") {
-#                    if (($oWmiSystem.Manufacturer -eq "HP") -and ((Get-Wmiobject -ComputerName $Server.Name -Class "__Namespace" -Namespace "root" | Where-Object {$_.name -eq "HPQ"}) -ne $null)) {
-#                        $IPMIFirmware =  Get-WmiObject -Computername $Server.Name -Namespace "root\hpq" -Query "select * from HP_MPFirmware"
-#                        $IPMIIntserface = Get-WmiObject -Computername $Server.Name -Namespace "root\hpq" -Query ("ASSOCIATORS OF {HP_MPFirmware.InstanceID='" + $IPMIFirmware.InstanceID + "'} WHERE AssocClass=HP_MPInstalledFirmwareIdentity")
-#                        [System.Xml.XmlElement]$oXmlIPMI = $oXMLDocument.CreateElement("IPMI")
-#                        $oXmlIPMI.SetAttribute("Type",$($IPMIIntserface.Name)) | Out-Null
-#                        $oXmlIPMI.SetAttribute("Version",$($IPMIFirmware.VersionString)) | Out-Null
-#                        $oXmlIPMI.SetAttribute("ID",$($IPMIIntserface.UniqueIdentifier)) | Out-Null
-#                        $oXmlIPMI.SetAttribute("IPAddress",$($IPMIIntserface.IPv4Address)) | Out-Null
-#                        $oXmlRoot.AppendChild($oXmlIPMI)
-#                        } elseif (($oWmiSystem.Manufacturer -eq "Dell Inc.") -and ((Get-Wmiobject -ComputerName $Server.Name -Class "__Namespace" -Namespace "root\cimv2" | Where-Object {$_.name -eq "Dell"}) -ne $null)) {
-#                            $IPMIFirmware =  Get-WmiObject -ComputerName $Server.Name -Namespace "root\cimv2\dell" -Query "SELECT * FROM DELL_Firmware WHERE Name like 'iDRAC%'"
-#                            $IPMIIntserface = Get-WmiObject -ComputerName $Server.Name -Namespace "root\cimv2\dell" -Class DELL_RemoteAccessServicePort
-#                            [System.Xml.XmlElement]$oXmlIPMI = $oXMLDocument.CreateElement("IPMI")
-#                            $oXmlIPMI.SetAttribute("Type",$($IPMIFirmware.Name)) | Out-Null
-#                            $oXmlIPMI.SetAttribute("Version",$($IPMIFirmware.Version)) | Out-Null
-#                            $oXmlIPMI.SetAttribute("IPAddress",$($IPMIIntserface.AccessInfo)) | Out-Null
-#                            $oXmlRoot.AppendChild($oXmlIPMI)
-#                        }
+            #            foreach ($type in $osStorage) {
+#                $osDisks = $type.node | Where-Object {$_.class -eq "disk"}
+#                foreach ($disk in $osDisks) {
+#                    $osVolumes = $disk.node | Where-Object {$_.class -eq "volume"}
+#                    foreach ($volume in $osVolumes) {
+#                        [System.Xml.XmlElement]$oXmlLogicalDisk = $oXMLDocument.CreateElement("LogicalDisk$($lDisk)")
+#                        $oXmlLogicalDisk.SetAttribute("DeviceID","$([string]$volume.logicalname)") | Out-Null
+#                        $oXmlLogicalDisk.SetAttribute("Size","$([math]::round($volume.capacity/1Gb, 1)) GB") | Out-Null
+#                        $oXmlLogicalDisk.SetAttribute("FileSystem","$($volume.configuration.setting | Where-Object {$_.id -eq "mount.fstype"} | Select-Object value -ExpandProperty value )") | Out-Null
+#                        $oXmlLogicalDisk.SetAttribute("Label","-") | Out-Null
+#                        $oXmlLogicalDisks.AppendChild($oXmlLogicalDisk) | Out-Null
+#                        $oXmlStorage.AppendChild($oXmlLogicalDisks) | Out-Null
+#                        $lDisk++
+#                    }
 #                }
+#            }
+#            if ($lDisk -eq 0) {
+#                $oXmlLogicalDisks.SetAttribute("Count","1") | Out-Null
+#            } else {
+#                $oXmlLogicalDisks.SetAttribute("Count","$($lDisk)") | Out-Null
+#            }
             #endregion
 
             # Сохранение XML
@@ -437,10 +446,11 @@
                 $tStr.Cell(2,1).Range.Text = "RAID"
                 $tStr.Cell(2,2).Range.Text = "Интерфейс"
                 $tStr.Cell(2,3).Range.Text = "Объем"
-                switch ($oXmlDocument.Server.VendorInfo.Virtualized) {
-                    "YES" {$tStr.Cell(3,1).Range.Text = "-"}
-                    "NO" {$tStr.Cell(3,1).Range.Text = "#ЗАПОЛНИТЬ#"}
-                }
+#                switch ($oXmlDocument.Server.VendorInfo.Virtualized) {
+#                    "YES" {$tStr.Cell(3,1).Range.Text = "-"}
+#                    "NO" {$tStr.Cell(3,1).Range.Text = "#ЗАПОЛНИТЬ#"}
+#                }
+                $tStr.Cell(3,1).Range.Text = "$($oXmlDocument.Server.Storage.PhysicalDisks.$DiskNumber.Raid)"
                 $tStr.Cell(3,2).Range.Text = "$($oXmlDocument.Server.Storage.PhysicalDisks.$DiskNumber.Interface)"
                 $tStr.Cell(3,3).Range.Text = "$($oXmlDocument.Server.Storage.PhysicalDisks.$DiskNumber.Size)"
                 $Selection.MoveDown([Microsoft.Office.Interop.Word.WdUnits]::wdScreen)
@@ -535,53 +545,6 @@
                 $Selection.MoveDown([Microsoft.Office.Interop.Word.WdUnits]::wdScreen)
                 $Selection.MoveDown([Microsoft.Office.Interop.Word.WdUnits]::wdScreen)
                 $Selection.TypeParagraph()
-            }
-            #endregion
-
-            #region Таблица IPMI
-            if (($oWmiSystem.Model -ne "Virtual Machine") -and (($oWmiSystem.Manufacturer -eq "HP") -or ($oWmiSystem.Manufacturer -eq "Dell Inc."))) {
-                $Selection.Range.ParagraphFormat.SpaceAfter = 0
-                $Selection.Font.Bold = $true
-                $Selection.TypeText("Интерфейс управления")
-                $Selection.Font.Bold = $false
-                $Selection.TypeParagraph()
-                $Selection.MoveDown()
-                    # Рисуем таблицу
-                switch ($oXmlDocument.Server.VendorInfo.Manufacturer) {
-                    "HP" { $tIPMI = $WordApp.ActiveDocument.Tables.Add($Selection.Range, 4,2) }
-                    "Dell Inc." { $tIPMI = $WordApp.ActiveDocument.Tables.Add($Selection.Range, 3,2) }
-                }
-                $tIPMI.Borders.OutsideLineStyle = 1
-                $tIPMI.Borders.InsideLineStyle = 1
-                $tIPMI.Style.Table.RightPadding = 3
-                $tIPMI.Style.Table.AllowBreakAcrossPage = 1
-                $tIPMI.Columns.Item(1).Width = 150
-                $tIPMI.Columns.Item(2).Width = 350
-                $tIPMI.Rows.SpaceBetweenColumns = 11
-                $tIPMI.Range.ParagraphFormat.SpaceAfter = 0
-                $FirstRowCells = $tIPMI.Range.Columns.Item(1).Cells
-                foreach ($cell in $FirstRowCells) {
-                    $cell.Range.Bold = $true
-                }
-                    # Заполняем ячейки (ряд, ячейка)
-                if ($oXmlDocument.Server.VendorInfo.Manufacturer -eq "HP") {
-                    $tIPMI.Cell(1,1).Range.Text = "Тип"
-                    $tIPMI.Cell(2,1).Range.Text = "Версия"
-                    $tIPMI.Cell(3,1).Range.Text = "Идентификационный номер"
-                    $tIPMI.Cell(4,1).Range.Text = "IP адрес"
-                    $tIPMI.Cell(1,2).Range.Text = "$($oXmlDocument.Server.IPMI.Type)"
-                    $tIPMI.Cell(2,2).Range.Text = "$($oXmlDocument.Server.IPMI.Version)"
-                    $tIPMI.Cell(3,2).Range.Text = "$($oXmlDocument.Server.IPMI.ID)"
-                    $tIPMI.Cell(4,2).Range.Text = "$($oXmlDocument.Server.IPMI.IPAddress)"
-                } elseif ($oXmlDocument.Server.VendorInfo.Manufacturer -eq "Dell Inc.") {
-                    $tIPMI.Cell(1,1).Range.Text = "Тип"
-                    $tIPMI.Cell(2,1).Range.Text = "Версия"
-                    $tIPMI.Cell(3,1).Range.Text = "IP адрес"
-                    $tIPMI.Cell(1,2).Range.Text = "$($oXmlDocument.Server.IPMI.Type)"
-                    $tIPMI.Cell(2,2).Range.Text = "$($oXmlDocument.Server.IPMI.Version)"
-                    $tIPMI.Cell(3,2).Range.Text = "$($oXmlDocument.Server.IPMI.IPAddress)"
-                }
-                    $Selection.MoveDown([Microsoft.Office.Interop.Word.WdUnits]::wdScreen)
             }
             #endregion
             
