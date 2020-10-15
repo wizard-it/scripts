@@ -1,10 +1,10 @@
 ﻿function Create-ServerReportLinux() {
     <#
         .SYNOPSIS
-        Составляет отчет по серверу с ОС Linux. Внимание: для работы функции на целевой системе должны быть установлены пакеты util-linux, lshw, sudo; разрешено запускать lshw из под sudo без ввода пароля
+        Составляет отчет по серверу с ОС Linux. Внимание: для работы функции на целевой системе должны быть установлены пакеты util-linux, ipmitool, lshw, sudo; разрешено запускать lshw из под sudo без ввода пароля
 
         .DESCRIPTION
-        Функция Create-ServerReportLinux оформлена в виде командлета PowerShell и предоставляет администратору средство для генерации отчета по серверу. Внимание: для работы функции на целевой системе должны быть установлены пакеты util-linux, lshw, sudo; разрешено запускать lshw из под sudo без ввода пароля
+        Функция Create-ServerReportLinux оформлена в виде командлета PowerShell и предоставляет администратору средство для генерации отчета по серверу. Внимание: для работы функции на целевой системе должны быть установлены пакеты util-linux, ipmitool, lshw, sudo; разрешено запускать lshw из под sudo без ввода пароля
 
         .EXAMPLE
         Create-ServerReportLinux -ComputerName shv-vk8node01
@@ -23,7 +23,7 @@
         [string[]]$ADCompProp = @('OperatingSystem','Description','Location','SerialNumber','DestinationIndicator','CanonicalName'),
         [switch]$SaveXML
     )
-    Write-Host -ForegroundColor Green "Внимание: для работы функции на целевой системе должны быть установлены пакеты util-linux, lshw, sudo; разрешено запускать lshw из под sudo без ввода пароля"
+    Write-Host -ForegroundColor Green "Внимание: для работы функции на целевой системе должны быть установлены пакеты util-linux, lshw, sudo и ipmitool для невиртуальных серверов; разрешено запускать lshw из под sudo без ввода пароля"
     [Microsoft.ActiveDirectory.Management.ADComputer[]]$Servers = Get-ADComputer -Identity $ComputerName -Properties $ADCompProp
     for ($j = 0; $j -lt $Servers.Count; $j++) {
     [Microsoft.ActiveDirectory.Management.ADComputer]$Server = $Servers[$j]
@@ -47,16 +47,24 @@
             if ($osMemoryCount -eq 0) {
                 $osMemoryCount = 1
             }
-            $osMemorySpeed = $($($osMemory | Where-Object {$_.id -eq "memory"}).node | Where-Object {$_.id -eq "bank:0"}).clock
+            $osMemorySpeed = $osMemorySpeed = $($($osMemory | Where-Object {$_.id -eq "memory"}).node | Where-Object {$_.id -eq "bank:0"}).clock | Select-Object "#text" -ExpandProperty "#text"
+            if ($osMemorySpeed) {
+                $osMemorySpeed = $osMemorySpeed/1000000 + "Mhz"
+            } else {
+                $osMemorySpeed = "-"
+            }
 #            $osCpu = $($dataXml.list.node.node | Where-Object {$_.id -eq "core"}).node | Where-Object {$_.class -eq "processor" -and $_.description -notlike "*empty*"}
 #            $osCpuCount = $osCpu.Count
             [int]$osCpuCount = $osCpu.lscpu | Where-Object {$_.field -eq "Socket(s):"} | Select-Object data -ExpandProperty data
-            $osCpuClockSpeed = [math]::round(($osCpu.lscpu | Where-Object {$_.field -eq "CPU MHz:"} | select data -ExpandProperty data)/1000, 2)
+            $osCpuClockSpeed = [math]::round(($osCpu.lscpu | Where-Object {$_.field -eq "CPU MHz:"} | Select-Object data -ExpandProperty data)/1000, 2)
             $osCpuModel = $osCpu.lscpu | Where-Object {$_.field -eq "Model name:"} | Select-Object data -ExpandProperty data
             [int]$osCpuCoresPerSocket = $osCpu.lscpu | Where-Object {$_.field -eq "Core(s) per socket:"} | Select-Object data -ExpandProperty data
             [int]$osCpuCoresTotal = ($osCpuCount * $osCpuCoresPerSocket)
             $osLogicalCpu = $osCpu.lscpu | Where-Object {$_.field -eq "CPU(s):"} | Select-Object data -ExpandProperty data
-
+            if ($dataXml.list.node.product -ne "Virtual Machine") {
+                $osIpmiInfo = $(Invoke-SSHCommand -Index 0 -Command "sudo ipmitool mc info").Output
+                $osIpmiLan = $(Invoke-SSHCommand -Index 0 -Command "sudo ipmitool lan print").Output
+            }
 
 
             # Создаем XML документ
@@ -229,38 +237,34 @@
             if ($lDisk -eq 0) {
                 $oXmlLogicalDisks.SetAttribute("Count","1") | Out-Null
             } else {
-                $oXmlLogicalDisks.SetAttribute("Count","$($lDisks.Count)") | Out-Null
+                $oXmlLogicalDisks.SetAttribute("Count","$($lDisk)") | Out-Null
+            }
+            #endregion
+
+            #region IPMI XML
+            if ($dataXml.list.node.product -ne "Virtual Machine") {            
+                [System.Xml.XmlElement]$oXmlIPMI = $oXMLDocument.CreateElement("IPMI")
+                $osIpmiId = $($($($osIpmiInfo | Select-String "Device ID").ToString()) -replace '.*\:','').Trim()
+                $osIpmiVer = $($($($osIpmiInfo | Select-String "Firmware Revision").ToString()) -replace '.*\:','').Trim()
+                $osIpmiName = $($($($osIpmiInfo | Select-String "Product Name").ToString()) -replace '.*\:','').Trim()
+                $osIpmiIp = $($($($osIpmiLan | Select-String "IP Address\ \").ToString()) -replace '.*\:','').Trim()
+                $oXmlIPMI.SetAttribute("Type","$($osIpmiName)") | Out-Null
+                $oXmlIPMI.SetAttribute("Version","$($osIpmiVer)") | Out-Null
+                $oXmlIPMI.SetAttribute("ID","$($osIpmiId)") | Out-Null
+                $oXmlIPMI.SetAttribute("IPAddress","$($osIpmiIp)") | Out-Null
+                $oXmlRoot.AppendChild($oXmlIPMI)
             }
 
-            #            foreach ($type in $osStorage) {
-#                $osDisks = $type.node | Where-Object {$_.class -eq "disk"}
-#                foreach ($disk in $osDisks) {
-#                    $osVolumes = $disk.node | Where-Object {$_.class -eq "volume"}
-#                    foreach ($volume in $osVolumes) {
-#                        [System.Xml.XmlElement]$oXmlLogicalDisk = $oXMLDocument.CreateElement("LogicalDisk$($lDisk)")
-#                        $oXmlLogicalDisk.SetAttribute("DeviceID","$([string]$volume.logicalname)") | Out-Null
-#                        $oXmlLogicalDisk.SetAttribute("Size","$([math]::round($volume.capacity/1Gb, 1)) GB") | Out-Null
-#                        $oXmlLogicalDisk.SetAttribute("FileSystem","$($volume.configuration.setting | Where-Object {$_.id -eq "mount.fstype"} | Select-Object value -ExpandProperty value )") | Out-Null
-#                        $oXmlLogicalDisk.SetAttribute("Label","-") | Out-Null
-#                        $oXmlLogicalDisks.AppendChild($oXmlLogicalDisk) | Out-Null
-#                        $oXmlStorage.AppendChild($oXmlLogicalDisks) | Out-Null
-#                        $lDisk++
-#                    }
-#                }
-#            }
-#            if ($lDisk -eq 0) {
-#                $oXmlLogicalDisks.SetAttribute("Count","1") | Out-Null
-#            } else {
-#                $oXmlLogicalDisks.SetAttribute("Count","$($lDisk)") | Out-Null
-#            }
             #endregion
 
             # Сохранение XML
             if ($SaveXML -eq $true) {
-                if (Test-Path "$Workdir\xml" -eq $false) {
+                if (Test-Path "$Workdir\xml") {
+                    $oXmlDocument.Save("$Workdir\xml\$($Server.Name).xml")
+                } else {
                     New-Item -Type Directory -Path "$Workdir\xml"
+                    $oXmlDocument.Save("$Workdir\xml\$($Server.Name).xml")
                 }
-                $oXmlDocument.Save("$Workdir\xml\$($Server.Name).xml")
             }
 
             #### Генерация DOCX файла с отчетом ####
@@ -562,7 +566,42 @@
                 $Selection.TypeParagraph()
             }
             #endregion
-            
+
+            #region Таблица IPMI
+            if ($dataXml.list.node.product -ne "Virtual Machine") {
+                $Selection.Range.ParagraphFormat.SpaceAfter = 0
+                $Selection.Font.Bold = $true
+                $Selection.TypeText("Интерфейс управления")
+                $Selection.Font.Bold = $false
+                $Selection.TypeParagraph()
+                $Selection.MoveDown()
+                # Рисуем таблицу
+                $tIPMI = $WordApp.ActiveDocument.Tables.Add($Selection.Range, 4,2)
+                $tIPMI.Borders.OutsideLineStyle = 1
+                $tIPMI.Borders.InsideLineStyle = 1
+                $tIPMI.Style.Table.RightPadding = 3
+                $tIPMI.Style.Table.AllowBreakAcrossPage = 1
+                $tIPMI.Columns.Item(1).Width = 150
+                $tIPMI.Columns.Item(2).Width = 350
+                $tIPMI.Rows.SpaceBetweenColumns = 11
+                $tIPMI.Range.ParagraphFormat.SpaceAfter = 0
+                $FirstRowCells = $tIPMI.Range.Columns.Item(1).Cells
+                foreach ($cell in $FirstRowCells) {
+                    $cell.Range.Bold = $true
+                }
+                # Заполняем ячейки (ряд, ячейка)
+                $tIPMI.Cell(1,1).Range.Text = "Тип"
+                $tIPMI.Cell(2,1).Range.Text = "Версия"
+                $tIPMI.Cell(3,1).Range.Text = "Идентификационный номер"
+                $tIPMI.Cell(4,1).Range.Text = "IP адрес"
+                $tIPMI.Cell(1,2).Range.Text = "$($oXmlDocument.Server.IPMI.Type)"
+                $tIPMI.Cell(2,2).Range.Text = "$($oXmlDocument.Server.IPMI.Version)"
+                $tIPMI.Cell(3,2).Range.Text = "$($oXmlDocument.Server.IPMI.ID)"
+                $tIPMI.Cell(4,2).Range.Text = "$($oXmlDocument.Server.IPMI.IPAddress)"
+                $Selection.MoveDown([Microsoft.Office.Interop.Word.WdUnits]::wdScreen)
+            }
+            #endregion
+
             #region Сохранение DOCX
             if ((Test-Path "$Workdir\docx") -eq $false) {
                 New-Item -Type Directory -Path "$Workdir\docx"
