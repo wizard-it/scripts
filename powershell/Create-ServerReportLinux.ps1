@@ -35,9 +35,53 @@
             $cred = Get-Credential
             New-SshSession -ComputerName $ComputerName -Credential $cred -Verbose
             [xml]$dataXml = $(Invoke-SSHCommand -Index 0 -Command "sudo lshw -xml").Output
-            $osCpu = $(Invoke-SSHCommand -Index 0 -Command "lscpu -J").Output | ConvertFrom-Json
+            [xml]$disksXml = $(Invoke-SSHCommand -Index 0 -Command "sudo lshw -c disk -xml").Output
+#            $osCpuOut = $(Invoke-SSHCommand -Index 0 -Command "lscpu -J").Output | ConvertFrom-Json
+
+            $osCpuOut = $(Invoke-SSHCommand -Index 0 -Command "lscpu").Output
+            [System.Collections.ArrayList]$ja = @()
+            foreach ($str in $osCpuOut) {
+                [System.Collections.ArrayList]$array = @()
+                foreach ($j in $(($str.Replace(' ','')).Split(":"))) {
+                    $array.Add($j)
+                }
+                $param = '"' + $array[0] + '"' + ':' + '"' + $array[1] + '"'
+                $ja.Add($param)
+            }
+
+            $collect = ""
+            foreach ($p in $ja) {
+                $collect = $collect + $p + ","
+            }
+            $charCount = $collect.Length-1
+            [string]$json = '{' + $collect.Substring(0,$charCount) + '}'
+            $osCpu = $json | ConvertFrom-Json
+
             $osDistrib = $(Invoke-SSHCommand -Index 0 -Command "hostnamectl | sed -n 's/Operating System: //p'").Output
-            $osMounts = $(Invoke-SSHCommand -Index 0 -Command "findmnt -R -D --list / --json").Output | ConvertFrom-Json
+
+            $osMounts = $(Invoke-SSHCommand -Index 0 -Command "findmnt -R -D -P").Output
+            [System.Collections.ArrayList]$fsArray = @()
+            foreach ($osFsRaw in $osMounts) {
+                [System.Collections.ArrayList]$pArray = @()
+                $jStrTmp = ''
+                $jStrCom = ''
+                $splitStr = $osFsRaw.Split(' ')
+                foreach ($k in $splitStr) {
+                    [System.Collections.ArrayList]$array = @()
+                    foreach ($m in $k.Split('=')) {
+                        $array.Add($m)
+                    }
+                    $param = '"' + $array[0] + '"' + ':' + $array[1]
+                    $pArray.Add($param)        
+                }
+                foreach ($n in $pArray) {
+                    $jStrTmp = $jStrTmp + $n + ","
+                }
+                [int]$charCount = $jStrTmp.Length-1
+                [string]$jStrCom = '{' + $jStrTmp.Substring(0,$charCount) + '}'
+                $fsArray.Add($jStrCom) 
+            }
+
             $osNetwork = $dataXml.list.node.node | Where-Object {$_.class -eq "network"}
             $osMemory = $($dataXml.list.node.node | Where-Object {$_.id -eq "core"}).node | Where-Object {$_.class -eq "memory"}
             $osStorage = $($dataXml.list.node.node | Where-Object {$_.id -eq "core"}).node | Where-Object {$_.class -eq "storage"}
@@ -47,20 +91,19 @@
             if ($osMemoryCount -eq 0) {
                 $osMemoryCount = 1
             }
-            $osMemorySpeed = $osMemorySpeed = $($($osMemory | Where-Object {$_.id -eq "memory"}).node | Where-Object {$_.id -eq "bank:0"}).clock | Select-Object "#text" -ExpandProperty "#text"
+            [int]$osMemorySpeed = $osMemorySpeed = $($($osMemory | Where-Object {$_.id -eq "memory"}).node | Where-Object {$_.id -eq "bank:0"}).clock | Select-Object "#text" -ExpandProperty "#text"
             if ($osMemorySpeed) {
-                $osMemorySpeed = $osMemorySpeed/1000000 + "Mhz"
+                $osMemorySpeed = $osMemorySpeed/1000000
             } else {
                 $osMemorySpeed = "-"
             }
 #            $osCpu = $($dataXml.list.node.node | Where-Object {$_.id -eq "core"}).node | Where-Object {$_.class -eq "processor" -and $_.description -notlike "*empty*"}
 #            $osCpuCount = $osCpu.Count
-            [int]$osCpuCount = $osCpu.lscpu | Where-Object {$_.field -eq "Socket(s):"} | Select-Object data -ExpandProperty data
-            $osCpuClockSpeed = [math]::round(($osCpu.lscpu | Where-Object {$_.field -eq "CPU MHz:"} | Select-Object data -ExpandProperty data)/1000, 2)
-            $osCpuModel = $osCpu.lscpu | Where-Object {$_.field -eq "Model name:"} | Select-Object data -ExpandProperty data
-            [int]$osCpuCoresPerSocket = $osCpu.lscpu | Where-Object {$_.field -eq "Core(s) per socket:"} | Select-Object data -ExpandProperty data
+            [int]$osCpuCount = $osCpu.'Socket(s)'
+            $osCpuClockSpeed = $([math]::round($osCpu.CPUMHz, 2))/1000
+            $osCpuModel = $osCpu.Modelname
+            [int]$osCpuCoresPerSocket = $osCpu.'Core(s)persocket'
             [int]$osCpuCoresTotal = ($osCpuCount * $osCpuCoresPerSocket)
-            $osLogicalCpu = $osCpu.lscpu | Where-Object {$_.field -eq "CPU(s):"} | Select-Object data -ExpandProperty data
             if ($dataXml.list.node.product -ne "Virtual Machine") {
                 $osIpmiInfo = $(Invoke-SSHCommand -Index 0 -Command "sudo ipmitool mc info").Output
                 $osIpmiLan = $(Invoke-SSHCommand -Index 0 -Command "sudo ipmitool lan print").Output
@@ -133,7 +176,7 @@
             #region Память XML
             [System.Xml.XmlElement]$oXmlMemory = $oXMLDocument.CreateElement("Memory")
             $oXmlMemory.SetAttribute("Capacity","$($osMemoryTotal) Gb") | Out-Null
-            $oXmlMemory.SetAttribute("Speed","$($osMemorySpeed)") | Out-Null
+            $oXmlMemory.SetAttribute("Speed","$($osMemorySpeed) Mhz") | Out-Null
             foreach ($i in $osMemory) {
                 $osMemoryCount++
             }
@@ -159,6 +202,7 @@
 
             #region Сеть XML
             [System.Xml.XmlElement]$oXmlNetworkAdapter = $oXMLDocument.CreateElement("Network")
+            $ipExe = $($(Invoke-SSHCommand -Index 0 -Command "whereis ip").Output).Split(' ')[1]
             [int]$osNicCount = 0
             foreach ($nic in $osNetwork) {
                 [System.Xml.XmlElement]$oXmlNet = $oXMLDocument.CreateElement("NetworkAdapter$($osNicCount)")
@@ -166,8 +210,8 @@
                 if (!$ip) {
                     Continue
                 }
-                $osNetworkMask = $(Invoke-SSHCommand -Index 0 -Command "ip addr show $($nic.logicalname) | sed -n 's/inet .*\///p' | sed -n 's/brd.*//p'").Output
-                $osDefRoute = $(Invoke-SSHCommand -Index 0 -Command "ip route | sed -n 's/default via//p' | sed -n 's/dev.*//p'").Output
+                $osNetworkMask = $(Invoke-SSHCommand -Index 0 -Command "$($ipExe) addr show $($nic.logicalname) | sed -n 's/inet .*\///p' | sed -n 's/brd.*//p'").Output
+                $osDefRoute = $(Invoke-SSHCommand -Index 0 -Command "$($ipExe) route | sed -n 's/default via//p' | sed -n 's/dev.*//p'").Output
                 $osDefRoute = $osDefRoute.Trim()
                 $osNetworkMask = $osNetworkMask.Trim()
                 $oXmlNet.SetAttribute("Description","$($nic.description)") | Out-Null
@@ -191,27 +235,24 @@
             # Физические диски
             [System.Xml.XmlElement]$oXmlPhysicalDisks = $oXmlDocument.CreateElement("PhysicalDisks")
             [int]$pDisk = 0
-            foreach ($type in $osStorage) {
-                $osDisks = $type.node | Where-Object {$_.class -eq "disk"}
-                foreach ($disk in $osDisks) {
-                    [System.Xml.XmlElement]$oXmlPhysicalDisk = $oXmlDocument.CreateElement("PhysicalDisk$($pDisk)")
-                    $oXmlPhysicalDisk.SetAttribute("Size","$([math]::round($($($disk.size | Select-Object "#text" -ExpandProperty "#text")/1GB))) GB") | Out-Null
-                    $oXmlPhysicalDisk.SetAttribute("Model","$($disk.product)") | Out-Null
-                    $oXmlPhysicalDisk.SetAttribute("Interface","$($disk.businfo)") | Out-Null
-                    foreach ($vol in $disk.node) {
-                        if ($vol.description -like "*LVM*") {
-                            $lvm = "YES"
-                        }
+            foreach ($disk in $disksXml.list.node) {
+                [System.Xml.XmlElement]$oXmlPhysicalDisk = $oXmlDocument.CreateElement("PhysicalDisk$($pDisk)")
+                $oXmlPhysicalDisk.SetAttribute("Size","$([math]::round($($($disk.size | Select-Object "#text" -ExpandProperty "#text")/1GB))) GB") | Out-Null
+                $oXmlPhysicalDisk.SetAttribute("Model","$($disk.product)") | Out-Null
+                $oXmlPhysicalDisk.SetAttribute("Interface","$($disk.businfo)") | Out-Null
+                foreach ($vol in $disk.node) {
+                    if ($vol.description -like "*LVM*") {
+                        $lvm = "YES"
                     }
-                    if ($lvm -eq "YES") {
-                        $oXmlPhysicalDisk.SetAttribute("Raid","LVM") | Out-Null
-                    } else {
-                        $oXmlPhysicalDisk.SetAttribute("Raid","-") | Out-Null
-                    }
-                    $oXmlPhysicalDisks.AppendChild($oXmlPhysicalDisk) | Out-Null
-                    $oXmlStorage.AppendChild($oXmlPhysicalDisks) | Out-Null
-                    $pDisk++
                 }
+                if ($lvm -eq "YES") {
+                    $oXmlPhysicalDisk.SetAttribute("Raid","LVM") | Out-Null
+                } else {
+                    $oXmlPhysicalDisk.SetAttribute("Raid","-") | Out-Null
+                }
+                $oXmlPhysicalDisks.AppendChild($oXmlPhysicalDisk) | Out-Null
+                $oXmlStorage.AppendChild($oXmlPhysicalDisks) | Out-Null
+                $pDisk++
             }
             if ($pDisk -eq 0) {
                 $oXmlPhysicalDisks.SetAttribute("Count","1") | Out-Null
@@ -223,16 +264,20 @@
             # Логические диски
             [System.Xml.XmlElement]$oXmlLogicalDisks = $oXmlDocument.CreateElement("LogicalDisks")
             [int]$lDisk = 0
-            $lDisks = $osMounts.filesystems | Where-Object {($_.fstype -notmatch "tmpfs|binfmt_misc|overlay|rpc_pipefs|proc|cgroup|sysfs|security|pstore|debugfs|configfs|devpts|autofs|nsfs|bpf|hugetlbfs|mqueue") -and ($_.size -ne $null)}
-            foreach ($volume in $lDisks) {
+            foreach ($jStr in $fsArray) {
                 [System.Xml.XmlElement]$oXmlLogicalDisk = $oXMLDocument.CreateElement("LogicalDisk$($lDisk)")
-                $oXmlLogicalDisk.SetAttribute("DeviceID","$($volume.target)") | Out-Null
-                $oXmlLogicalDisk.SetAttribute("Size","$($volume.size)") | Out-Null
-                $oXmlLogicalDisk.SetAttribute("FileSystem","$($volume.fstype)") | Out-Null
+                $volume = $jStr | ConvertFrom-Json
+                if ($volume.FSTYPE -match "tmpfs|binfmt_misc|overlay|rpc_pipefs|proc|cgroup|sysfs|security|pstore|debugfs|configfs|devpts|autofs|nsfs|bpf|hugetlbfs|mqueue" -or $volume.SIZE -eq "0") {
+                    continue
+                }
+                $oXmlLogicalDisk.SetAttribute("DeviceID","$($volume.TARGET)") | Out-Null
+                $oXmlLogicalDisk.SetAttribute("Size","$($volume.SIZE)") | Out-Null
+                $oXmlLogicalDisk.SetAttribute("FileSystem","$($volume.FSTYPE)") | Out-Null
                 $oXmlLogicalDisk.SetAttribute("Label","-") | Out-Null
                 $oXmlLogicalDisks.AppendChild($oXmlLogicalDisk) | Out-Null
                 $oXmlStorage.AppendChild($oXmlLogicalDisks) | Out-Null
                 $lDisk++
+
             }
             if ($lDisk -eq 0) {
                 $oXmlLogicalDisks.SetAttribute("Count","1") | Out-Null
@@ -247,7 +292,7 @@
                 $osIpmiId = $($($($osIpmiInfo | Select-String "Device ID").ToString()) -replace '.*\:','').Trim()
                 $osIpmiVer = $($($($osIpmiInfo | Select-String "Firmware Revision").ToString()) -replace '.*\:','').Trim()
                 $osIpmiName = $($($($osIpmiInfo | Select-String "Product Name").ToString()) -replace '.*\:','').Trim()
-                $osIpmiIp = $($($($osIpmiLan | Select-String "IP Address\ \").ToString()) -replace '.*\:','').Trim()
+                $osIpmiIp = $($($($osIpmiLan | Select-String "IP Address  ").ToString()) -replace '.*\:','').Trim()
                 $oXmlIPMI.SetAttribute("Type","$($osIpmiName)") | Out-Null
                 $oXmlIPMI.SetAttribute("Version","$($osIpmiVer)") | Out-Null
                 $oXmlIPMI.SetAttribute("ID","$($osIpmiId)") | Out-Null
@@ -612,7 +657,7 @@
             Remove-Variable oXmlDocument, WordApp
             #endregion
 
-            Write-Progress -Activity “Found computers: $($Servers.Count). Gathering information...” -status “Complete $($j+1)” -percentComplete (($j/$Servers.count)*100)
+#            Write-Progress -Activity “Found computers: $($Servers.Count). Gathering information...” -status “Complete $($j+1)” -percentComplete (($j/$Servers.count)*100)
             Remove-SSHSession -Index 0
         } else {
                 "Cannot connect to host $($Server.Name)" | Out-File "$Workdir\errors.txt" -Encoding utf8
