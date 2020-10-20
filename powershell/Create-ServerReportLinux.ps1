@@ -31,7 +31,7 @@
             # Активируем сессию SSH до хоста
             # Для получения данных выбрали источником программу lshw. Нужно установить, если нет в дистрибутиве по умолчанию.
             # Важно! Распарсить выхлоп из под sudo с паролем оказалось тяжело,
-            # поэтому на линукс серверах нужно разрешить запуск lshw из под sudo без ввода пароля
+            # поэтому на линукс серверах нужно разрешить запуск lshw и ipmitool из под sudo без ввода пароля
             $cred = Get-Credential
             New-SshSession -ComputerName $ComputerName -Credential $cred -Verbose
             [xml]$dataXml = $(Invoke-SSHCommand -Index 0 -Command "sudo lshw -xml").Output
@@ -128,9 +128,12 @@
                 "*Mail*" {$Role = "Сервер приложений MS Exchange."}
                 "*Domain*" {$Role = "Контроллер домена."}
                 "*DB*" {$Role = "Сервер баз данных."}
+                "*Monitor*" {$Role = "Сервер приложений Мониторинг."}
                 "*APP*" {$Role = "Сервер приложений."}
                 "*EMS*" {$Role = "Сервер мониторинга EMS."}
                 "*RUDIS*" {$Role = "Сервер приложений RUDIS."}
+                "Experium*" {$Role = "Сервер приложений Experium."}
+                "*Netbox*" {$Role = "Сервер приложений Netbox."}
                 "*Print*" {$Role = "Сервер печати."}
                 "*SAP*" {$Role = "Сервер приложений SAP."}
                 "*File*" {$Role = "Файловый сервер"}
