@@ -95,7 +95,7 @@
             if ($osMemorySpeed) {
                 $osMemorySpeed = $osMemorySpeed/1000000
             } else {
-                $osMemorySpeed = "-"
+                [string]$osMemorySpeed = "-"
             }
 #            $osCpu = $($dataXml.list.node.node | Where-Object {$_.id -eq "core"}).node | Where-Object {$_.class -eq "processor" -and $_.description -notlike "*empty*"}
 #            $osCpuCount = $osCpu.Count
