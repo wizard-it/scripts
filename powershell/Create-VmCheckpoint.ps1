@@ -7,7 +7,7 @@ function Create-VmCheckpoint() {
         Функция Create-VmCheckpoint оформлена в виде командлета PowerShell и предоставляет администратору средство для создания контрольной точки виртуального хоста
 
         .EXAMPLE
-        Create-VmCheckpoint -hostnames shv-vdc01, shv-vbpm01 -hosttype windows
+        Create-VmCheckpoint -hostnames shv-vac01, shv-vbpm01 -hosttype windows
         Create-VmCheckpoint -hostnames shv-vnetbox01, shv-vapp07 -hosttype linux
 
 
