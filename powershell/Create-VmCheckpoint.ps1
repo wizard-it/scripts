@@ -7,7 +7,9 @@ function Create-VmCheckpoint() {
         Функция Create-VmCheckpoint оформлена в виде командлета PowerShell и предоставляет администратору средство для создания контрольной точки виртуального хоста
 
         .EXAMPLE
-        Create-VmCheckpoint -ComputerName shv-vdc01
+        Create-VmCheckpoint -hostnames shv-vdc01, shv-vbpm01 -hosttype windows
+        Create-VmCheckpoint -hostnames shv-vnetbox01, shv-vapp07 -hosttype linux
+
 
         .NOTES
         Organization: AO "Gedeon Richter-RUS"
@@ -55,7 +57,7 @@ function Create-VmCheckpoint() {
 
     [string]$datestr = Get-Date -Format "dd_MM_yyyy_HHmm"
     $cpName = "auto-$datestr"
-    
+
     foreach ($server in $hostnames) {
         if (([system.net.dns]::Resolve("$($server)") -ne $null) -and (Test-Connection $server -Count 2)) {
             printStatus -operation "Checking network connection to $server :  " -status "Done" -statColor Green -newline
@@ -96,7 +98,6 @@ function Create-VmCheckpoint() {
                 }
             } else {
                 printStatus -operation "Creating checkpoint for $server :  " -status "Done" -statColor Green -newline
-                Remove-PSSession $session
             }            
         } else {
             printStatus -operation "Checking network connection to $server :  " -status "Failed" -statColor Red -newline
