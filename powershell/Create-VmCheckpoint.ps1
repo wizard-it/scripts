@@ -89,7 +89,7 @@ function Create-VmCheckpoint() {
                 }
             }
             printStatus -operation "Creating checkpoint for $server :  " -status "Pending..." -statColor White
-            $status = Invoke-Command -ComputerName $hyperV -ScriptBlock {try { Checkpoint-VM -Name $($args[0]) -SnapshotName $($args[1]) -ErrorAction Stop} Catch [system.exception] {return 1}} -ArgumentList $vmName, $cpName
+            $status = Invoke-Command -ComputerName $hyperV -ScriptBlock {try {Checkpoint-VM -Name $($args[0]) -SnapshotName $($args[1]) -ErrorAction Stop} Catch [system.exception] {return 1}} -ArgumentList $vmName, $cpName
             if ($track) {Write-Host "status: $status"}
             if ($status -eq "1") {
                 printStatus -operation "Creating checkpoint for $server :  " -status "Failed" -statColor Red -newline
