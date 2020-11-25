@@ -24,6 +24,7 @@ function Delete-VmCheckpoint() {
         [switch]$version,
         [switch]$track,
         [switch]$all,
+        [switch]$dryrun,
         [string]$credPath
     )
 
@@ -86,6 +87,7 @@ function Delete-VmCheckpoint() {
                     if ($track) {Write-Host "HyperV Host: $hyperV , VM name: $vmName"}
                 }
             }
+            if ($dryrun) {Write-Host "Dry Run..."; continue}
             printStatus -operation "Removing checkpoint for $server :  " -status "Pending..." -statColor White
             if ($all) {
                 $status = Invoke-Command -ComputerName $hyperV -ScriptBlock {try {Remove-VMSnapshot -VMName $($args[0]) -ErrorAction Stop} Catch [system.exception] {return 1}} -ArgumentList $vmName, $cpName

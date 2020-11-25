@@ -23,6 +23,7 @@ function Create-VmCheckpoint() {
         [string]$hosttype,
         [switch]$version,
         [switch]$track,
+        [switch]$dryrun,
         [string]$credPath
     )
 
@@ -88,6 +89,7 @@ function Create-VmCheckpoint() {
                     if ($track) {Write-Host "HyperV Host: $hyperV , VM name: $vmName"}
                 }
             }
+            if ($dryrun) {Write-Host "Dry Run..."; continue}
             printStatus -operation "Creating checkpoint for $server :  " -status "Pending..." -statColor White
             $status = Invoke-Command -ComputerName $hyperV -ScriptBlock {try {Checkpoint-VM -Name $($args[0]) -SnapshotName $($args[1]) -ErrorAction Stop} Catch [system.exception] {return 1}} -ArgumentList $vmName, $cpName
             if ($track) {Write-Host "status: $status"}
