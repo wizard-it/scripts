@@ -337,7 +337,6 @@ def load_csv(conn, data_file, data_file_header):
                 # Fill extensionAttribute1, extensionAttribute2
                 update_dict['extensionAttribute1'] = user['department'].strip()
                 update_dict['extensionAttribute2'] = user['title'].strip()
-                update_dict['extensionAttribute7'] = user['employegrade'].strip()
 
                 # Put update_dict to the global dict
                 all_employees[empl_id] = update_dict
