@@ -35,13 +35,13 @@ function Update-ExchangeCertificate() {
     if ( -not (Test-Path -LiteralPath $credPath -PathType Leaf) ) { 
         Write-Host "Can't read credentials from file $credPath . Aborting..."
         Wait-Event -Timeout 2
-        exit    
+        return 1
     }
 
     if ( -not (Test-Path -LiteralPath $certPath -PathType Leaf) ) { 
         Write-Host "Can't read new certificate. Aborting..."
         Wait-Event -Timeout 2
-        exit    
+        return 1
     }
 
     foreach ($server in $hostnames)
@@ -56,7 +56,8 @@ function Update-ExchangeCertificate() {
         $oldcert = Get-ExchangeCertificate -DomainName $domain
         Remove-ExchangeCertificate -Thumbprint $oldcert.Thumbprint -Confirm:$false
         Import-ExchangeCertificate -FileData ([Byte[]]$(Get-Content -Path $certpath -Encoding byte -ReadCount 0)) -Password $cerPass
+        $newcert = Get-ExchangeCertificate -DomainName $domain
+        Enable-ExchangeCertificate -Services IIS,IMAP,POP -Thumbprint $newcert.Thumbprint -NetworkServiceAllowed
     }
     
 }
-
