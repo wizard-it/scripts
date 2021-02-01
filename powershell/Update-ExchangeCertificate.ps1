@@ -54,10 +54,10 @@ function Update-ExchangeCertificate() {
         }
         Import-Module (Import-PSSession $exSession -AllowClobber) -Global
         $oldcert = Get-ExchangeCertificate -DomainName $domain
-        Remove-ExchangeCertificate -Thumbprint $oldcert.Thumbprint -Confirm:$false
+        if ($oldcert) { Remove-ExchangeCertificate -Thumbprint $oldcert.Thumbprint -Confirm:$false }
         Import-ExchangeCertificate -FileData ([Byte[]]$(Get-Content -Path $certpath -Encoding byte -ReadCount 0)) -Password $cerPass
         $newcert = Get-ExchangeCertificate -DomainName $domain
-        Enable-ExchangeCertificate -Services IIS,IMAP,POP -Thumbprint $newcert.Thumbprint -NetworkServiceAllowed
+        if ($newcert) { Enable-ExchangeCertificate -Services IIS,IMAP,POP -Thumbprint $newcert.Thumbprint -NetworkServiceAllowed }
     }
-    
+
 }
