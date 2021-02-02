@@ -4,11 +4,11 @@ function Update-ExchangeCertificate() {
         Обновляет сертификат на серверax Exchange
 
         .DESCRIPTION
-        Функция Update-ExchangeCertificates оформлена в виде командлета PowerShell и предоставляет администратору средства для обновления сертификатов на серверe Exchange.
+        Функция Update-ExchangeCertificate оформлена в виде командлета PowerShell и предоставляет администратору средства для обновления сертификата на серверe Exchange.
 
         .EXAMPLE
         Обновить сертификат на сервере shv-vexch01.shuvoe.rg-rus.ru,shv-vexch02.shuvoe.rg-rus.ru:
-            Update-ExchangeCertificates -credPath "C:\TEMP\cred.xml" -certPath \\server1\share1\exchange.pfx -certPassword m@sterP@ssword -hostnames shv-vexch01.shuvoe.rg-rus.ru,shv-vexch02.shuvoe.rg-rus.ru
+            Update-ExchangeCertificate -credPath "C:\TEMP\cred.xml" -certPath \\server1\share1\exchange.pfx -certPassword m@sterP@ssword -hostnames shv-vexch01.shuvoe.rg-rus.ru,shv-vexch02.shuvoe.rg-rus.ru
         .NOTES
         Organization: AO "Gedeon Richter-RUS"
         Author: Kornilov Alexander
