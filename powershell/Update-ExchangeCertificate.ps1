@@ -48,7 +48,7 @@ function Update-ExchangeCertificate() {
     {
         $exSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$server/PowerShell/ -Authentication Kerberos -Credential $credentials -AllowRedirection
         if (!$exSession) { 
-            Write-Host "Can't connect to host $server, check creds. Skiping..."
+            Write-Host "Can't connect to host $server, check creds and Powershell API. Skiping..."
             Wait-Event -Timeout 2
             continue
         }
