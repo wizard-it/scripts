@@ -1,15 +1,15 @@
-﻿function Lock-File() {
+﻿function Lock-Folder() {
     <#
         .SYNOPSIS
         Выставляет ACL на указанный файл
 
         .DESCRIPTION
-        Функция Lock-File оформлена в виде командлета PowerShell и предоставляет администратору средство для блокирования доступа к файлу путем изменения ACL файла с возможностью обратного действия.
+        Функция Lock-Folder оформлена в виде командлета PowerShell и предоставляет администратору средство для блокирования доступа к файлу путем изменения ACL файла с возможностью обратного действия.
 
         .EXAMPLE
-        Lock-File -path "H:\Обмен\test.txt"
-        Lock-File -path "H:\Обмен\test.txt" -trustList @{"MYSERVER\Administrators","MYDOMAIN\Administrators"} -accessList @{"MYDOMAIN\Administrators"}
-        Lock-File -path "H:\Обмен\test.txt" -recover
+        Lock-Folder -path "H:\Обмен"
+        Lock-Folder -path "H:\Обмен\" -trustList @{"MYSERVER\Administrators","MYDOMAIN\Administrators"} -accessList @{"MYDOMAIN\Administrators"}
+        Lock-Folder -path "H:\Обмен\-" -recover
         
         .NOTES
         Organization: AO "Gedeon Richter-RUS"
@@ -82,13 +82,14 @@
             }
         }
         foreach ($account in $accessList) {
-            $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule ($account,"FullControl","Allow")
             if ($trace) {Write-Host "[INFO] Adding access for $account"}
+            $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule ($account,"FullControl","Allow")
             $tAcl.SetAccessRule($accessRule)
         }
         Set-Acl -Path $target -AclObject $tAcl
     }
 
+# Remove \ from end of path
     if (!$trace) {$ErrorActionPreference = 'silentlycontinue'}
     $fPath = $(Resolve-Path -Path $path).Path
     if ($fPath.Split('\')[0] -eq 'Microsoft.PowerShell.Core') {
@@ -96,25 +97,31 @@
     } else {
         $path = $fPath
     }
+    $split = $path.Split("\")
+    if ( -not ($split[-1]) ) {$path = $split[0..$($split.Count - 2)] -join '\'}
+    if ($path.Split('\').Count -lt 2) {Write-Host "Locking of root drives is not recomended...Aborting"; return 1}
+
     if ($trace) {Write-Host "[INFO] Checking permission..."}
 # Check basic permissions
-    if ( -not (Test-Path -LiteralPath $path -PathType Leaf) ) { 
-        Write-Host "File $path not found. Aborting..."
+    if ( -not (Test-Path -LiteralPath $path -PathType Container) ) { 
+        Write-Host "Folder $path not found. Aborting..."
         return 1
     }
     try {
-        [io.file]::OpenWrite($path).close()
+        [io.file]::OpenWrite("$(Split-Path -Path $path)\pid").close()
+        Remove-Item "$(Split-Path -Path $path)\pid"
     } catch {
-        Write-Host "Unable to write to file $path. Aborting..."
+        Write-Host "Unable to write to folder $path. Aborting..."
         return 1
     }
+
     if ($trace) {Write-Host "[INFO] Set defaults..."}
 # Set default access and trust lists (if not defined)
     if (!$accessUsers) {$accessUsers = @("SHUVOE\KornilovAA", "SHUVOE\PiskunovDV","SHUVOE\Администраторы домена")}
     if (!$trustUsers) {$trustUsers = @("BUILTIN\Администраторы", "NT AUTHORITY\СИСТЕМА", "SHUVOE\Администраторы домена")}
 # Recovering (unlocking) ACL
     if ($recover) {
-        if ($trace) {Write-Host "[INFO] Restoring permissions to file..."}
+        if ($trace) {Write-Host "[INFO] Restoring permissions to folder..."}
         restoreAcl -target $path
         return 0
     }
@@ -125,6 +132,6 @@
     if ($trace) {Write-Host "[INFO] Disabling parent's access..."}
     disableInherited -target $path
 # Locking file
-    if ($trace) {Write-Host "[INFO] Locking file (changing ACL)..."}
+    if ($trace) {Write-Host "[INFO] Locking folder (changing ACL)..."}
     lockFile -target $path -trustList $trustUsers -accessList $accessUsers
 }
