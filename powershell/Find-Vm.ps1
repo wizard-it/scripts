@@ -48,6 +48,14 @@ function Find-Vm() {
         default {Write-Host "Uncorrect type of host, use linux or windows."; return 1}
     }
 
+    if ($type -eq "lin") {
+        if ($credPath) {
+            $cred = $credPath
+        } else {
+            $cred = Get-Credential
+        }
+    }
+
     if (!$track) {$ErrorActionPreference = 'silentlycontinue'}
     foreach ($server in $hostnames) {
         if (([system.net.dns]::Resolve("$($server)") -ne $null) -and (Test-Connection $server -Count 2)) {
