@@ -17,8 +17,8 @@
             Create-ADUser -fullName "Достоевский Федор Михайлович" -State "Москва" -City "Москва" -StreetAddress "4-й Добрынинский пер, 8" -FileShare "\\srvfs177\users\"
 
         .NOTES
-        Organization: JSC "Gedeon Richter-RUS"
-        Author: Khatsayuk Alexandr, Kornilov Alexander
+        Organization: AO "Gedeon Richter-RUS"
+        Authors: Khatsayuk Alexandr, Kornilov A.A.
 
     #>
     
