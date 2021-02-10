@@ -6,12 +6,12 @@
         .DESCRIPTION
         Функция Create-ADUser оформлена в виде командлета PowerShell и предоставляет администратору средства для содания нового
         пользователя в домене AD DS. Помимо создания учетной записи и заполнения различных её полей, возможно создание почтового
-        ящика в MS Exchange и каталога на файловом сервере предприятия.
+        ящика в MS Exchange и каталога на файловом сервере предприятия. Добавлена функция транслитации имени пользователя.
 
         .EXAMPLE
         Создать пользователя "Достоевский Федор Михайлович" с логином DostoevskyFM, параметрами по умолчанию, диском, почтовым ящиком и доступом к Интернет:
             Create-ADUser -fullName "Достоевский Федор Михайлович" -JobTitle "Великий русский писатель" -OfficeNumber 42 -MailDatabase "Shuvoe Standard Users" -CreateOOF -InternetGroupName "web_allow_basic"
-        
+
         .EXAMPLE
         Создать пользователя "Достоевский Федор Михайлович" с логином DostoevskyFM для московского офиса:
             Create-ADUser -fullName "Достоевский Федор Михайлович" -State "Москва" -City "Москва" -StreetAddress "4-й Добрынинский пер, 8" -FileShare "\\srvfs177\users\"
@@ -21,7 +21,7 @@
         Authors: Khatsayuk Alexandr, Kornilov A.A.
 
     #>
-    
+
     [CmdLetBinding()]
     Param (
     #region Параметры
@@ -48,7 +48,7 @@
     # Создание личного диска
     [switch]$noPersonalDrive = $false,
     [string]$fileShare = "\\fsc01\users$\",
-    
+
     # Добавление в группу доступа к сети Интернет
     [string]$InternetGroupName,
 
@@ -80,7 +80,7 @@
 
     #region Генерация пароля
     function Gen-Password() {
-        
+
         # Рандомно формируем строку для пароля
         # 5 букв из латинского алфавита в нижнем и верхнем регистре
         [string]$passChars = (Get-Random -InputObject $([char[]](97..122) + [char[]](65..90)) -Count 5) -join ''
@@ -93,12 +93,12 @@
 
         # Конвертируем полученную строку в SecureString
         [System.Security.SecureString]$securePassword = $(ConvertTo-SecureString -AsPlainText $resultPassString -Force)
-    
+
         # Создаем объект, содержащий как plaintext так и securestring
         $passObj = New-Object -TypeName psobject
         Add-Member -InputObject $passObj -MemberType NoteProperty -Name 'PasswordString' -Value $resultPassString
         Add-Member -InputObject $passObj -MemberType NoteProperty -Name 'SecurePasswordString' -Value $securePassword
-    
+
         # Возвращаем сформированный объект
         return $passObj
     }
@@ -110,7 +110,7 @@
     Remove-PSSession -Name "Create-ADUser" -ErrorAction SilentlyContinue
 
     # Словарь для транслитизации
-    [hashtable]$dictionary = @{ 
+    [hashtable]$dictionary = @{
         [char]'а' = "a";[char]'А' = "A";
         [char]'б' = "b";[char]'Б' = "B";
         [char]'в' = "v";[char]'В' = "V";
@@ -188,7 +188,7 @@
             Clear-Variable -Name DisplayName, latFullName, SamAccountName, Surname, FirstName, GivenName, OtherName, SecondName, Patronymic, fullNameArray -ErrorAction SilentlyContinue
             break
     }
-    
+
     #region Создаем пользователя
     if ($samAccountName -ne $null) {
         #region Базовый пользователь - без отчества, инициалов, почты и пр.
@@ -217,7 +217,7 @@
             -HomePage "http://intranet.$($localDomain)/sites/profiles/Person.aspx?accountname=i%3A0%23%2Ew%7Cshuvoe%5C$($samAccountName)" `
             -EmployeeID $employeeID
         #endregion "Базовый пользователь"
-    
+
         # Если отчество было сформировано - применяем его к свежесозданной учетке и устрановим инициалы
         if ($OtherName.Length -ne 0) {
             Set-ADUser -Identity $samAccountName -Initials $($DisplayName -Replace '^\w+\s') -OtherName $OtherName -Server $PDC
@@ -225,7 +225,7 @@
             # В обратном случае - только инициалы
             Set-ADUser -Identity $samAccountName -Initials $($GivenName[0] + ".") -Server $PDC
         }
-    
+
         # Установка менеджера, если он был указан в параметрах
         if ($Manager.Length -gt 0) {
             [string]$mGRSurname,[string]$mGRGivenName,[string]$mGRMiddleName = $Manager.Split()
@@ -234,7 +234,7 @@
                 $mGRSearchFilter += ' -and (MiddleName -eq $MGRMiddleName)'
             }
             [string]$ADManagerDN = (Get-ADUser -Properties Surname,GivenName,MiddleName -Filter $mGRSearchFilter).distinguishedName
-        
+
             Set-ADUser -Identity $samAccountName -Manager $ADManagerDN -Server $PDC
         }
 
@@ -305,7 +305,7 @@
     #endregion
     }
     #endregion "Создаем пользователя"
-    
+
     # Отчет на экран
     "{0,-15}{1,-3}{2,-45}" -f "Login Name",":","$($samAccountName)"
     "{0,-15}{1,-3}{2,-45}" -f "Init Password",":",$password.PasswordString
