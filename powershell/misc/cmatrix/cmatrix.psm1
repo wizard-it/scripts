@@ -260,9 +260,9 @@ function New-Column {
 function Start-ScreenSaver {
    
     # feel free to tweak maxcolumns and frame delay
-    # currently 20 columns with 30ms wait
+    # currently 50 columns with 30ms wait
    
-    Start-CMatrix -max 20 -frame 30
+    Start-CMatrix -maxcolumns 50 -frameWait 30
 }
  
 function Register-Timer {
