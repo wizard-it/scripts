@@ -1,4 +1,9 @@
 @ECHO ON
+
+rem Description:    Installing Zabbix client.
+rem Organization:   AO "Gedeon Richter-RUS"
+rem Author:         Kornilov Alexander
+
 IF NOT EXIST "%ProgramFiles%\Zabbix Agent" (
 ECHO "Make DIR"
 MD "%ProgramFiles%\Zabbix Agent"

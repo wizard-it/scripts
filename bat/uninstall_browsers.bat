@@ -1,4 +1,9 @@
 @ECHO OFF
+
+rem Description:    Uninstalling browsers using absolute path.
+rem Organization:   AO "Gedeon Richter-RUS"
+rem Author:         Kornilov Alexander
+
 if exist "%ProgramFiles%\Google\Chrome\Application" (
     FOR /F "delims=" %%e in ('dir/b/ad-h "%ProgramFiles%\Google\Chrome\Application"') do (
         if exist "%ProgramFiles%\Google\Chrome\Application\%%e\Installer\setup.exe" (

@@ -1,5 +1,9 @@
 @echo off
- 
+
+rem Description:    Script for simple backuping.
+rem Organization:   AO "Gedeon Richter-RUS"
+rem Author:         Kornilov Alexander
+
 set source="C:\Source"
 set destination="D:\Backup"
 set passwd="password_archive"
