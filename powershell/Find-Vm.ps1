@@ -50,7 +50,7 @@ function Find-Vm() {
 
     if ($type -eq "lin") {
         if ($credPath) {
-            $cred = $credPath
+            $cred = Import-CliXML -Path $credPath
         } else {
             $cred = Get-Credential
         }

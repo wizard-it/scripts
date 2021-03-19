@@ -51,7 +51,7 @@ function Delete-VmCheckpoint() {
     if ($track) {write-Host "hosttype: $hosttype , type: $type"}
     if ($type -eq "lin") {
         if ($credPath) {
-            $cred = $credPath
+            $cred = Import-CliXML -Path $credPath
         } else {
             $cred = Get-Credential
         }
