@@ -74,7 +74,7 @@ function Delete-VmCheckpoint() {
                 }
             }
             if ($type -eq "lin") {
-                New-SshSession -ComputerName $server -Credential $cred -ErrorAction SilentlyContinue >$null 2>&1
+                New-SshSession -ComputerName $server -Credential $cred -AcceptKey -ErrorAction SilentlyContinue >$null 2>&1
                 [string]$hyperV = $(Invoke-SSHCommand -Index 0 -Command "strings /var/lib/hyperv/.kvp_pool_3 | grep -A1 HostName | tail -1" -ErrorAction SilentlyContinue).Output
                 [string]$vmName = $(Invoke-SSHCommand -Index 0 -Command "strings /var/lib/hyperv/.kvp_pool_3 | grep -A1 VirtualMachineName | tail -1" -ErrorAction SilentlyContinue).Output
                 Get-SSHSession | Remove-SSHSession -ErrorAction SilentlyContinue >$null 2>&1
