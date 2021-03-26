@@ -56,13 +56,13 @@ function Delete-AllVmCheckpoints() {
                 if ($track) {$Error[0,1]}
                 printStatus -operation "Calculating VM List against $server : " -status "Done" -operColor Green -statColor Yellow -newline
                 foreach ($vm in $vms) {
-                    printStatus -operation "Deleting all snapshots for $($vm.Name) : " -status "Pending..." -operColor Green -statColor Yellow -newline
-                    if ($dryrun) {printStatus -operation "Deleting all snapshots for $($vm.Name) : " -status "Dry Run, Do nothing" -operColor Green -statColor Yellow; continue}
-                    $status = Invoke-Command -ComputerName $server -ScriptBlock {try {Remove-VMSnapshot -Name * -VMName $($args[0]) -ErrorAction Stop} Catch [system.exception] {return 1}} -ArgumentList $vm
+                    printStatus -operation "Deleting all snapshots for $($vm.Name) : " -status "Pending..." -operColor Red -statColor Yellow
+                    if ($dryrun) {printStatus -operation "Deleting all snapshots for $($vm.Name) : " -status "Dry Run, Do nothing" -operColor Red -statColor Yellow -newline; continue}
+                    $status = Invoke-Command -ComputerName $server -ScriptBlock {try {Remove-VMSnapshot -VMName $($args[0]) -ErrorAction Stop} Catch [system.exception] {return 1}} -ArgumentList $($vm.Name)
                     if ($status -eq "1") {
-                        printStatus -operation "Deleting all snapshots for $($vm.Name) : " -status "Failed" -statColor Red -newline
+                        printStatus -operation "Deleting all snapshots for $($vm.Name) : " -status "Failed" -operColor Red -statColor Red -newline
                     } else {
-                        printStatus -operation "Deleting all snapshots for $($vm.Name) : " -status "Done" -statColor Yellow -newline
+                        printStatus -operation "Deleting all snapshots for $($vm.Name) : " -status "Done" -operColor Red -statColor Yellow -newline
                     }
                 }
             }
