@@ -64,20 +64,21 @@
                 }
 
             #region Определение роли сервера
-            switch -wildcard ($Server.Description) {
-                "*Mail*" {$Role = "Сервер приложений MS Exchange."}
-                "DB" {$Role = "Сервер баз данных."}
-                "APP" {$Role = "Сервер приложений."}
-                "EMS" {$Role = "Сервер мониторинга EMS."}
-                "RUDIS" {$Role = "Сервер приложений RUDIS."}
-                "Print*" {$Role = "Сервер печати."}
-                "SAP*" {$Role = "Сервер приложений SAP."}
-                "File*" {$Role = "Файловый сервер"}
-                "Hyper-V" {$Role = "Хост виртуализации Hyper-V."}
-                "Terminal*" {$Role = "Терминальный сервер."}
-                "Web*" {$Role = "Сервер Web приложений."}
-                default {$Role = "Роль сервера не определена!"}
-            }
+#            switch -wildcard ($Server.Description) {
+#                "*Mail*" {$Role = "Сервер приложений MS Exchange."}
+#                "DB" {$Role = "Сервер баз данных."}
+#                "APP" {$Role = "Сервер приложений."}
+#                "EMS" {$Role = "Сервер мониторинга EMS."}
+#                "RUDIS" {$Role = "Сервер приложений RUDIS."}
+#                "Print*" {$Role = "Сервер печати."}
+#                "SAP*" {$Role = "Сервер приложений SAP."}
+#                "File*" {$Role = "Файловый сервер"}
+#                "Hyper-V" {$Role = "Хост виртуализации Hyper-V."}
+#                "Terminal*" {$Role = "Терминальный сервер."}
+#                "Web*" {$Role = "Сервер Web приложений."}
+#                default {$Role = "Роль сервера не определена!"}
+#            }
+            $Role = "$($Server.Description)"
             $oXmlRoot.SetAttribute("Role","$($Role)")
             #endregion
             
