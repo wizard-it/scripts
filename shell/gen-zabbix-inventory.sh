@@ -100,7 +100,7 @@ if [ ! -f "$PRGDIR/$ZABBIXEXPORTSCRIPT" ]; then echo "Zabbix export script does 
 if [ -z "$PYTHON" ]; then echo "PYTHON shell does not found!"; exit 1; fi
 
 cd $PRGDIR
-if [ $GITSYNC -eq "YES" ]; $GIT pull; fi
+if [ $GITSYNC -eq "YES" ]; then $GIT pull; fi
 generateInventoryFile
-if [ $GITSYNC -eq "YES" ]; syncGit; fi
+if [ $GITSYNC -eq "YES" ]; then syncGit; fi
 
