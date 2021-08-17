@@ -62,7 +62,7 @@ function generateInventoryFile {
 
 function syncGit {
     $GIT add .
-    $GIT commit -m 'Auto commit $TIMESTAMP'
+    $GIT commit -m "Auto commit $TIMESTAMP"
     $GIT push origin master
 }
 
