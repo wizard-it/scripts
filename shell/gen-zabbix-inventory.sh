@@ -14,7 +14,7 @@ VERSION="1.0"
 TIMESTAMP=$(date +%d.%m.%Y.%H%M%S)
 # Applications
 SED=$(whereis sed | awk '{print $2}')
-GIT=$(whereis git | awk '{print $2}')
+GIT=$(whereis git | git '{print $2}')
 PYTHON=$(whereis python | awk '{print $2}')
 # Default params
 HOST=$(hostname)
