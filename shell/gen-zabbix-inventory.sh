@@ -47,7 +47,7 @@ exit 0
 
 function generateInventoryFile {
     # Generate static inventory
-    echo '' > hosts_dyn_zabbix.src
+    echo '' > $TMPFILE
     ./"$ZABBIXEXPORTSCRIPT" --list | ./"$ZABBIXCONVERTSCRIPT"
     # Drop a spaces from names
     $SED -e 's/^[ \t]*// ; s/[[:blank:]]*$// ; s/\s\+/_/g ; s/,$//' $TMPFILE | tee $OUTPUTFILE
