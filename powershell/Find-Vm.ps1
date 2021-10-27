@@ -22,7 +22,7 @@ function Find-Vm() {
         [Parameter (Mandatory=$true)]
         [array]$hostnames,
         [Parameter (Mandatory=$true)]
-        [string]$hosttype,
+        [ValidateSet("windows","linux")][string]$hosttype,
         [switch]$version,
         [switch]$track,
         [switch]$dryrun
