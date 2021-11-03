@@ -7,9 +7,8 @@ function Find-Vm() {
         Функция Find-Vm оформлена в виде командлета PowerShell и предоставляет администратору средство для идентификации виртуальной станции Hyper-V.
 
         .EXAMPLE
-        Find-Vm -path "H:\Обмен\test.txt"
-        Find-Vm -path "H:\Обмен\test.txt" -trustList @{"MYSERVER\Administrators","MYDOMAIN\Administrators"} -accessList @{"MYDOMAIN\Administrators"}
-        Find-Vm -path "H:\Обмен\test.txt" -recover
+        Find-Vm -hostnames shv-vdc01 -hosttype windows
+        Find-Vm -hostnames shv-vapp07,shv-vmoodle01 -hosttype linux
         
         .NOTES
         Organization: AO "Gedeon Richter-RUS"
