@@ -49,6 +49,7 @@ function Update-Pkg-Choco() {
 
         if ( ($origPkgNumber -gt $localPkgNumber) -or ($origPkgNumber -eq $localPkgNumber)) {
             Write-Host "Downloading new version of $pkgName package to $builddir ..."
+#            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             Invoke-WebRequest -Uri $defaultRepo/package/$pkgName/$origPkgVer -OutFile $builddir\\$pkgName.$origPkgVer.zip
             cd $builddir
             Expand-Archive .\$pkgName.$origPkgVer.zip -Force
