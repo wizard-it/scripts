@@ -1,14 +1,14 @@
 function Update-Pkg-Choco() {
     <#
         .SYNOPSIS
-        Пересобирает нугет пакет в локальную версию и выкладывает на локальный репозитарий
+        Пересобирает NuGet пакет в локальную версию и выкладывает на локальный репозитарий
 
         .DESCRIPTION
-        Функция Update-Pkg-Choco оформлена в виде командлета PowerShell и предоставляет администратору средство для автоматической пересборки пакетов с целью обновления софта из локального репозитария.
+        Функция Update-Pkg-Choco оформлена в виде командлета PowerShell и предоставляет администратору средство для автоматической пересборки пакетов NuGet с целью обновления софта из локального репозитария.
 
         .EXAMPLE
         Создать локальую версую пакета Zoom, в случае его отсутствия/обновления:
-            Update-Pkg-Choco -pkglist zoom -repo http://nexus.shuvoe.rg-rus.ru/repository/chocolatey-hosted/ -key 349fsvsd9
+            Update-Pkg-Choco -pkglist zoom -repo http://nexus.shuvoe.rg-rus.ru/repository/chocolatey-hosted/ -key 65461b1d-1c11-3938
 
         .NOTES
         Organization: AO "Gedeon Richter-RUS"
@@ -72,12 +72,12 @@ function Update-Pkg-Choco() {
             if ($url64) { Invoke-WebRequest -Uri $url64 -OutFile tools\\64\\$file64 }
             $spec = Get-Content -Path .\$pkgName.nuspec
             $spec -replace "$origPkgVer","$newPkgVer" | Set-Content -Path .\$pkgName.nuspec -Force
-            $origScript -replace '\$url =.*',"`$toolsDir = `"`$`(Split-Path -parent `$MyInvocation.MyCommand.Definition`)`"`r`n`$url = `"`$toolsDir\$file`"" -replace '\$url32.*',"`$toolsDir = `"`$`(Split-Path -parent `$MyInvocation.MyCommand.Definition`)`"`r`n`$url32 = `"`$toolsDir\$file`"" -replace '\$url64.*', "`$url64 = `"`$toolsDir\64\$file64`"" | Set-Content -Path .\tools\chocolateyInstall.ps1 -Force
+            $origScript -replace '^\$ErrorAction.*',"`$toolsDir = `"`$`(Split-Path -parent `$MyInvocation.MyCommand.Definition`)`"`r`n`$ErrorActionPreference = `'Stop`'" -replace '^\$url =.*',"`$url = `"`$toolsDir\$file`"" -replace '^\$url32.*',"`$url32 = `"`$toolsDir\$file`"" -replace '^\$url64.*', "`$url64 = `"`$toolsDir\64\$file64`"" | Set-Content -Path .\tools\chocolateyInstall.ps1 -Force
             choco pack .\$pkgName.nuspec
             choco push -s="$repo" -k="$key" ".\$pkgName.$newPkgVer.nupkg" --force
             Write-Host "Cleaning build dir..."
             cd $builddir
-            rmdir ".\$pkgName.$origPkgVer" -Recurse -Force   
+            rmdir ".\$pkgName.$origPkgVer" -Recurse -Force 
 
         } else {
             Write-Host "Package $pkgName is up to date"
