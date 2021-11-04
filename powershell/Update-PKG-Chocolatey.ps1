@@ -21,6 +21,7 @@ function Update-Pkg-Choco() {
         [string]$repo,
         [Parameter (Mandatory=$true)]
         [string]$key,
+        [switch]$save,
         [string]$builddir
     )
 
@@ -74,10 +75,15 @@ function Update-Pkg-Choco() {
             $spec -replace "$origPkgVer","$newPkgVer" | Set-Content -Path .\$pkgName.nuspec -Force
             $origScript -replace '^\$ErrorAction.*',"`$toolsDir = `"`$`(Split-Path -parent `$MyInvocation.MyCommand.Definition`)`"`r`n`$ErrorActionPreference = `'Stop`'" -replace '^\$url =.*',"`$url = `"`$toolsDir\$file`"" -replace '^\$url32.*',"`$url32 = `"`$toolsDir\$file`"" -replace '^\$url64.*', "`$url64 = `"`$toolsDir\64\$file64`"" | Set-Content -Path .\tools\chocolateyInstall.ps1 -Force
             choco pack .\$pkgName.nuspec
+            if ($save) {
+                Write-Host "New pkg $pkgName has been saved to $builddir\$pkgName.$newPkgVer.nupkg"
+                Copy-Item -Path ".\$pkgName.$newPkgVer.nupkg" -Destination "$builddir\"
+            }
             choco push -s="$repo" -k="$key" ".\$pkgName.$newPkgVer.nupkg" --force
             Write-Host "Cleaning build dir..."
             cd $builddir
-            rmdir ".\$pkgName.$origPkgVer" -Recurse -Force 
+            rmdir ".\$pkgName.$origPkgVer" -Recurse -Force
+            del ".\$pkgName.$origPkgVer.zip"
 
         } else {
             Write-Host "Package $pkgName is up to date"
