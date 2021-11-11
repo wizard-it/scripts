@@ -581,6 +581,10 @@ if __name__ == '__main__':
     else:
         write_log(LOGGER, 'INFO', 'Starting csv2ldap at {} on {}'.format(time.strftime(DATE_FMT), COMPUTERNAME))
         print('{}: One time update task started'.format(time.strftime(DATE_FMT)))
+        try:
+            process_csv_file(CSV_FILE, CSV_IN_FILE, XML_FILE)
+        except:
+            write_log(LOGGER, 'ERROR', "Error during preprocess file")
         csv_stat, csv_header = check_csv(CSV_FILE)
         if csv_stat is True:
             with ldap_connect(LDAP_SERVER, LDAP_USER, LDAP_PASSWORD) as ldap_conn:
