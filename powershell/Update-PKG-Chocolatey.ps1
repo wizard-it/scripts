@@ -28,6 +28,7 @@ function Update-Pkg-Choco() {
     function rebuildPkg {
         param (
             [string]$pkgName,
+            [string]$origPkgVer,
             [string]$localRepo,
             [string]$localKey,
             [string]$workDir
@@ -35,7 +36,7 @@ function Update-Pkg-Choco() {
         cd $workDir
         $defaultRepo = "https://community.chocolatey.org/api/v2/"
         $origPkgInfo = choco search $pkgName -e -s="$defaultRepo"
-        $origPkgVer = $($($origPkgInfo | Select-String -Pattern $pkgName) -split ' ')[1]
+        if (!$origPkgVer) { $origPkgVer = $($($origPkgInfo | Select-String -Pattern $pkgName) -split ' ')[1] }
         [int]$origPkgNumber = $origPkgVer -replace '\.',''
         $localPkgInfo = choco search $pkgName -e -s="$localRepo"
         if ($localPkgInfo | Select-String -Pattern $pkgName) {
@@ -80,7 +81,7 @@ function Update-Pkg-Choco() {
                     }
                     Move-Item -Path $workDir\$pkgName\$pkgName.nuspec -Destination $workDir\$pkgName\$pkgName.nuspec.old
                     Copy-Item -Path $workDir\$pkgName\$pkgName.nuspec.new -Destination $workDir\$pkgName\$pkgName.nuspec
-                    rebuildPkg -pkgName $depName -origPkgVer $origDepVer -workDir $workDir
+                    rebuildPkg -pkgName $depName -origPkgVer $origDepVer -localRepo $localRepo -localKey $localKey -workDir $workDir
                 }
             }
             $origScript = $origScript = Get-Content -Path $workDir\$pkgName\tools\chocolateyInstall.ps1
