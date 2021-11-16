@@ -558,8 +558,8 @@ Copy-Item -Path $file -Destination $nupkg -Force -ErrorAction SilentlyContinue
 
 #region Set up a local repositary (for internal use)
 
-Start-Process -FilePath "$chocoExePath\choco.exe" -ArgumentList 'source remove -n=chocolatey'
-Start-Process -FilePath "$chocoExePath\choco.exe" -ArgumentList 'source add -s="http://nexus.shuvoe.rg-rus.ru/repository/chocolatey/" -n=rgrus -y'
+Start-Process -FilePath "$chocoExePath\choco.exe" -ArgumentList 'source remove -n=chocolatey -y'
+Start-Process -FilePath "$chocoExePath\choco.exe" -ArgumentList 'source add -s=http://nexus.shuvoe.rg-rus.ru/repository/chocolatey/ -n=rgrus -y'
 
 
 # SIG # Begin signature block
