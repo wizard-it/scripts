@@ -421,22 +421,22 @@ def run_update(conn, data_file, data_header):
 def create_userlist(file1cxml):
     tree = ET.parse(file1cxml)
     root = tree.getroot()
-    for child in root.findall("Объект[@Тип='СправочникСсылка.ИнформацияОСотрудниках']"):
+    for employeeinfo in root.findall("Объект[@Тип='СправочникСсылка.ИнформацияОСотрудниках']"):
         
-        if child.attrib['Тип']=='СправочникСсылка.ИнформацияОСотрудниках' and child.attrib['ИмяПравила']=='ИнформацияОСотрудниках':
+        if employeeinfo.attrib['Тип']=='СправочникСсылка.ИнформацияОСотрудниках' and employeeinfo.attrib['ИмяПравила']=='ИнформацияОСотрудниках':
             usercode=''
-            for child1 in child.findall('.Ссылка/Свойство'):
-                if child1.attrib['Имя']=='Код':
-                    child2=child1.findall('Значение')
-                    usercode=child2[0].text
-                for child5 in child.findall("./ТабличнаяЧасть[@Имя='Руководители']"):
+            for propertyofemployee in employeeinfo.findall('.Ссылка/Свойство'):
+                if propertyofemployee.attrib['Имя']=='Код':
+                    codeofemployee=propertyofemployee.findall('Значение')
+                    usercode=codeofemployee[0].text
+                for listofmanagers in employeeinfo.findall("./ТабличнаяЧасть[@Имя='Руководители']"):
                     #print(child5[0].text)
                     managerscode=''
-                    for child6 in child5.findall('./Запись/Свойство'):
-                        if child6.attrib['Имя']=='Код':
-                            child7=child6.findall('Значение')
-                            managerscode=managerscode + child7[0].text+','
-                userlist[usercode]=managerscode
+                    for propertyofmanagers in listofmanagers.findall('./Запись/Свойство'):
+                        if propertyofmanagers.attrib['Имя']=='Код':
+                            codeofmanager=propertyofmanagers.findall('Значение')
+                            managerscode=managerscode + codeofmanager[0].text+','
+                userlist[usercode]=managerscode[:-1]
 
 
 
@@ -446,19 +446,18 @@ def process_csv_file(targetfile,sourcefile,file1cxml):
     fieldnames=['employeeid','sn','givenName','middleName','title','division','department','extensionAttribute4','physicalDeliveryOfficeName','telephoneNumber','mobile','manager','extensionAttribute7','extensionAttribute9','extensionAttribute10']
     create_userlist(file1cxml)
     with open(targetfile, "w", newline="", encoding="utf_8_sig") as file:
-        writer = csv.DictWriter(file, fieldnames=fieldnames,delimiter = CSV_DELIM)
+        writer = csv.DictWriter(file, fieldnames=fieldnames,delimiter = ";")
         writer.writeheader()
     with open(sourcefile, encoding="utf_8_sig") as csvfile:
         reader = csv.DictReader(csvfile,delimiter = ";")
         for row in reader:
             with open(targetfile, "a", newline="", encoding="utf_8_sig") as file:
                 writer = csv.DictWriter(file, fieldnames=fieldnames,delimiter = ";")
-                m=userlist.get(row['employeeid'])
-                if   userlist.get(row['employeeid']) is not None:
-                        if len(m.split(","))==2:
-                            #print('----------',len(m.split(",")),m)
-                            row['manager']=m.split(",",1)[0]
-                        row['extensionAttribute10']=m
+                codesofmanagers=userlist.get(row['employeeid'])
+                if   codesofmanagers is not None:
+                        if len(codesofmanagers.split(","))==2:
+                            row['manager']=codesofmanagers.split(",",1)[0]
+                        row['extensionAttribute10']=codesofmanagers
                 writer.writerow(row)
 
 
