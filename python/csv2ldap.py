@@ -514,7 +514,7 @@ if __name__ == '__main__':
 
     # CSV section
     CSV_FILE = config.get('CSV', 'CsvPath')
-    CSV_IN_FILE = config.get('CSV', 'CsvInPath ')
+    CSV_IN_FILE = config.get('CSV', 'CsvInPath')
     XML_FILE = config.get('CSV', 'XmlPath')
     CSV_DELIM = config.get('CSV', 'Delimiter', fallback=';')
     CSV_ENCODING = config.get('CSV', 'Encoding', fallback='utf-8')
