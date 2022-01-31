@@ -10,7 +10,7 @@
 
 VERSION="1"
 
-# Hardcoded: Return seconds frm Epoch
+# Hardcoded: Return seconds from Epoch
 # TODO: Rewrite script using input params
 
 date -d "$1" +"%s"
