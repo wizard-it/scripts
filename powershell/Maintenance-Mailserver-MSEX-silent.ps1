@@ -1,8 +1,9 @@
 $servername=$env:computername
+Add-PSSnapin Microsoft.Exchange.Management.PowerShell.SnapIn
 $dagname=(Get-DatabaseAvailabilityGroup | where {$_.servers -contains $servername}).name
 $partner_fqdn=[System.Net.Dns]::GetHostByName(((Get-DatabaseAvailabilityGroup $dagname).servers | where {!($_.name -eq $servername)} | select -First 1).name).Hostname
 
-if($args[1] -eq "drain"){
+if($args[0] -eq "drain"){
  if((get-exchangeserver $servername).serverrole -match "Mailbox"){
   Set-ServerComponentState $servername -Component HubTransport -State Draining -Requester Maintenance
   Redirect-Message -Server $servername -Target $partner_fqdn -Confirm:$false
