@@ -58,8 +58,11 @@ FULL_BACKUP_QUERY="select datname from pg_database where not datistemplate and d
 echo -e "\n\nPerforming full backups"
 echo -e "--------------------------------------------\n"
 
+[ ! -d $BACKUP_DIR ] && mkdir -p $BACKUP_DIR
+
 for DATABASE in `PGPASSWORD="$PASS" psql -h "$HOSTNAME" -U "$USERNAME" -At -c "$FULL_BACKUP_QUERY" postgres`
 do
+
 	if [ $ENABLE_PLAIN_BACKUPS = "yes" ]
 	then
 		echo "Plain backup of $DATABASE"
