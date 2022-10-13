@@ -405,6 +405,9 @@ def run_update(conn, data_file, data_header):
 
             # Running update
             if update_dict:
+#                if DEBUG:
+#                    for k, v in update_dict.items():
+#                        write_log(LOGGER, 'DEBUG', "Update dict attr '{}' = '{}'".format(k, v))
                 upd_res, upd_msg = update_user(conn, user_dn, update_dict)
                 if upd_res:
                     write_log(LOGGER, 'INFO', '{} : {} : {}'.format(samname, ', '.join(update_dict.keys()), upd_msg))
