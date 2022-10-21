@@ -1,5 +1,5 @@
 $ProgramPath = 'C:\Windows\System32\Spool\Tools\PrintBrm.exe'
-$LogPath = C:\Scripts
+$LogPath = 'C:\Scripts'
 $ArchiveName1 = 'print-backup-log'
 $ArchiveName2 = 'print-restore-log'
 
