@@ -8,8 +8,9 @@ user = config.sqluser
 password = config.sqlpassword
 database = config.sqldatabase
 driver = config.driver
+host = config.sqlhost
 
-engine_uri = "{}://{}:{}@{}?driver={}".format(dialect, user, password, database, driver)
+engine_uri = "{}://{}:{}@{}/{}?driver={}".format(dialect, user, password, host, database, driver)
 
 engine = create_engine(engine_uri, pool_pre_ping=True)  # Disconnect Handling - Pessimistic
 
