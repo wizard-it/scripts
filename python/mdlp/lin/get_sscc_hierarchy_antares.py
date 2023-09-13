@@ -1,14 +1,17 @@
 import pandas as pd
 from sqlalchemy import create_engine, text as sql_text
 import re
+import config
 
+dialect = config.dialect
+user = config.sqluser
+password = config.sqlpassword
+database = config.sqldatabase
+driver = config.driver
 
+engine_uri = "{}://{}:{}@{}?driver={}".format(dialect, user, password, database, driver)
 
-engine = create_engine(
-    'mssql+pyodbc://'
-    'tav:tav@RUSHVTRCSQLP22/AntaresTracking_PROD?'  # username:pwd@server:port/database
-    'driver=/opt/microsoft/msodbcsql17/lib64/libmsodbcsql-17.10.so.4.1', pool_pre_ping=True)  # Disconnect Handling - Pessimistic
-
+engine = create_engine(engine_uri, pool_pre_ping=True)  # Disconnect Handling - Pessimistic
 
 def get_sscc_hier_ant(serial_f):
     serial_f = serial_f[2:]
