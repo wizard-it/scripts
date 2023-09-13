@@ -3,8 +3,8 @@ from sqlalchemy import create_engine, text as sql_text
 import re
 import config
 
-engine_uri = "{}://{}:{}@{}/{}?driver={}".format(config.dialect, config.sqluser, config.sqlpassword, config.sqlhost, config.sqldatabase, config.driver)
-engine01 = create_engine(engine_uri, pool_pre_ping=True)  # Disconnect Handling - Pessimistic
+#engine_uri = "{}://{}:{}@{}/{}?driver={}".format(config.dialect, config.sqluser, config.sqlpassword, config.sqlhost, config.sqldatabase, config.driver)
+#engine01 = create_engine(engine_uri, pool_pre_ping=True)
 
 def get_sscc_hier_ant(serial_f,engine):
     serial_f = serial_f[2:]
@@ -63,9 +63,8 @@ def get_sscc_hier_ant(serial_f,engine):
 
     return df
 
-
-def check_sscc_homogeneous_antares(antares_parent):
-    df = get_sscc_hier_ant(antares_parent)
+def check_sscc_homogeneous_antares(antares_parent,engine):
+    df = get_sscc_hier_ant(antares_parent,engine)
     # print(df)
     if not df.empty:
         cnt = df.child_level_2_ntin.value_counts()
