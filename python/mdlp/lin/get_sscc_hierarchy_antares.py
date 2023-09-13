@@ -5,9 +5,9 @@ import config
 
 engine_uri = "{}://{}:{}@{}/{}?driver={}".format(config.dialect, config.sqluser, config.sqlpassword, config.sqlhost, config.sqldatabase, config.driver)
 
-engine = create_engine(engine_uri, pool_pre_ping=True)  # Disconnect Handling - Pessimistic
+engine01 = create_engine(engine_uri, pool_pre_ping=True)  # Disconnect Handling - Pessimistic
 
-def get_sscc_hier_ant(serial_f):
+def get_sscc_hier_ant(serial_f,engine):
     serial_f = serial_f[2:]
     serial_f = serial_f[:(len(serial_f) - 1)]
 
