@@ -3,14 +3,7 @@ from sqlalchemy import create_engine, text as sql_text
 import re
 import config
 
-dialect = config.dialect
-user = config.sqluser
-password = config.sqlpassword
-database = config.sqldatabase
-driver = config.driver
-host = config.sqlhost
-
-engine_uri = "{}://{}:{}@{}/{}?driver={}".format(dialect, user, password, host, database, driver)
+engine_uri = "{}://{}:{}@{}/{}?driver={}".format(config.dialect, config.sqluser, config.sqlpassword, config.sqlhost, config.sqldatabase, config.driver)
 
 engine = create_engine(engine_uri, pool_pre_ping=True)  # Disconnect Handling - Pessimistic
 
