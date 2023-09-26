@@ -24,9 +24,14 @@ def get_mdlp_code(endpoint, clientid, clientsecret, userid, authtype="SIGNED_COD
     body = {key: value.format(*format_args) for key, value in data.items()}
     headers = {"Content-Type": "application/json;charset=UTF-8", "Accept": "application/json;charset=UTF-8"}
     r = requests.post(url, headers=headers, json=body)
-    respond = json.loads(r.text)
-    code = respond.get('code')
-    return code
+    if r.status_code == 200:
+        data = json.loads(r.text)
+        respond = data.get('code')
+        return respond
+    else:
+        respond = ''
+        print("Bad code request! {}".format(r.text))
+        return respond
 
 def get_sign_csp(code, certhash):
     try:
@@ -68,14 +73,20 @@ def get_mdlp_token(endpoint, code, signature, target="api/v1/token"):
         print("Bad token request! Message: {}".format(r.text))
     return token
 
+def gen_mdlp_token(endpoint, clientid, clientsecret, userid, thumbprint):
+    code = get_mdlp_code(endpoint, clientid, clientsecret, userid)
+    sign = get_sign_csp(code, thumbprint)
+    token = get_mdlp_token(endpoint, code, sign)
+    return token
+
 def get_mdlp_sscc_full_hier(endpoint, item, token, target="api/v1/reestr/sscc/full-hierarchy"):
     url = "{}/{}".format(endpoint, target)
     params = {'sscc': item}
     body = {}
     headers = {"Accept": "application/json;charset=UTF-8", "Authorization": "token {}".format(token)}
     r = requests.get(url, headers=headers, data=body, params=params)
-    respond = r.text
     if r.status_code == 200:
+        respond = json.loads(r.text)
         return respond
     else:
         respond = ''
@@ -93,58 +104,37 @@ def get_mdlp_sscc_exists(endpoint, item, token, target="api/v1/reestr/sscc/sscc_
     r = requests.post(url, headers=headers, json=body)
     respond = r.text
     if r.status_code == 200:
+        respond = json.loads(r.text)
         return respond
     else:
         respond = ''
         print("Bad existed sscc request! {}".format(r.text))
         return respond
-    
-def check_mdlp_sscc_exist(item, response):
-    if not isinstance(item, list):
-        respond = ''
-        print("Item type must be list! Skipping request.")
+
+def get_mdlp_document(endpoint, item, token, target="api/v1/documents"):
+    url = "{}/{}/{}".format(endpoint, target, item)
+    body = {}
+    headers = {"Accept": "application/json;charset=UTF-8", "Authorization": "token {}".format(token)}
+    r = requests.get(url, headers=headers, data=body)
+    if r.status_code == 200:
+        respond = json.loads(r.text)
         return respond
-    data = json.loads(response)
-    entries = data['entries']
-    failed_entries = data['failed_entries']
-    if entries:
-        return entries[0]['sscc'] in item
-    elif failed_entries[0]['sscc'] in item:
-        return False
     else:
         respond = ''
-        print("Wrong comparing, check input params!")
+        print("Bad document request! {}".format(r.text))
         return respond
 
-
-    
-"""
-def get_sscc__mdlp_request(item, retry=0):
-    url = "http://127.0.0.1:18080/api/v1/reestr/sscc/sscc_check"
-    # params = {'sscc': f'{item}'}
-    # params = {'sscc': item}
-    payload = {'sscc': item}
-    payload_json = json.dumps(payload)
-    headers = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': f'token {token()}'
-    }
-    response = requests.request("POST", url, headers=headers, data=payload_json)
-    print(response.url, response.status_code, response.text)
-    logger.debug(f"[URL]: {response.url}")
-    logger.debug(f"[HEADERS]: {headers}")
-    logger.debug(f"[PAYLOAD]: {payload}")
-    logger.debug(f"[RESPONSE_CODE]: {response.status_code}")
-    logger.debug(f"[RESPONSE]: {response.text}")
-    limit = 20
-    if response.status_code == 200:
-        time.sleep(0.5)
-        return response.text
-    elif retry >= limit:
-        return []
+def get_mdlp_sgtin_docs(endpoint, item, token, target="api/v1/reestr/sgtin/documents"):
+    url = "{}/{}".format(endpoint, target)
+    params = {'sgtin': item}
+    body = {}
+    headers = {"Accept": "application/json;charset=UTF-8", "Authorization": "token {}".format(token)}
+    r = requests.get(url, headers=headers, data=body, params=params)
+    if r.status_code == 200:
+        respond = json.loads(r.text)
+        return respond
     else:
-        print("Sleeping 1s...")
-        time.sleep(5)
-        return get_sscc_exists_mdlp_request(item, retry + 1)
-"""
+        respond = ''
+        print("Bad documents request! {}".format(r.text))
+        return respond
+
