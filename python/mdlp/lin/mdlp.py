@@ -131,10 +131,18 @@ def get_mdlp_sgtin_docs(endpoint, item, token, target="api/v1/reestr/sgtin/docum
     headers = {"Accept": "application/json;charset=UTF-8", "Authorization": "token {}".format(token)}
     r = requests.get(url, headers=headers, data=body, params=params)
     if r.status_code == 200:
-        respond = json.loads(r.text)
+        data = json.loads(r.text)
+        respond = data.get('entries')
         return respond
     else:
         respond = ''
         print("Bad documents request! {}".format(r.text))
         return respond
+
+def find_mdlp_doc_type(docs, type):
+    result = []
+    for i in docs:
+        if i.get('doc_type') == type:
+            result.append(i.get('document_id'))
+    return result
 

@@ -17,7 +17,7 @@ logHandler.setFormatter(Formatter(fmt='[%(asctime)s: %(levelname)s] %(message)s'
 logHandler.setLevel(logging.DEBUG)
 logger.addHandler(logHandler)
 
-
+"""
 def get_sgtin_messages_mdlp_request(sgtin, retry=0):
     url = f"http://127.0.0.1:18080/api/v1/reestr/sgtin/documents"
     params = {'sgtin': f'{sgtin}'}
@@ -47,8 +47,8 @@ def get_sgtin_messages_mdlp_request(sgtin, retry=0):
         time.sleep(10)
 
         return get_sgtin_messages_mdlp_request(sgtin, retry + 1)
-
-
+"""
+"""
 def response_parser_342(response_f):
     load = json.loads(response_f)
     # doc_status = load['doc_status']
@@ -57,8 +57,9 @@ def response_parser_342(response_f):
     for i in entries:
         if i['doc_type'] == 342:
             return i['document_id']
+"""
 
-
+"""
 def response_parser_313(response_f):
     load = json.loads(response_f)
     # doc_status = load['doc_status']
@@ -67,6 +68,7 @@ def response_parser_313(response_f):
     for i in entries:
         if i['doc_type'] == 313:
             return i['document_id']
+"""
 
 # Get main document by it id:
 def get_document_main(document_id_f):
