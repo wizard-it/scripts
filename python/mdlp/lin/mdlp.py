@@ -8,6 +8,8 @@ import os, sys
 import subprocess
 import json
 import base64
+from urllib.parse import urlsplit, urlunsplit
+import xml.etree.ElementTree as ET
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -145,4 +147,42 @@ def find_mdlp_doc_type(docs, type):
         if i.get('doc_type') == type:
             result.append(i.get('document_id'))
     return result
+
+def get_mdlp_doc(endpoint, item, token, target="api/v1/documents/download"):
+    url = "{}/{}/{}".format(endpoint, target, item)
+    body = {}
+    purl = list(urlsplit(url))
+    headers = {"Accept": "application/json;charset=UTF-8", "Authorization": "token {}".format(token)}
+    r = requests.get(url, headers=headers, data=body)
+    if r.status_code == 200:
+        data = json.loads(r.text)
+        link = data.get('link')
+        durl = list(urlsplit(link))
+        durl[0] = purl[0]
+        durl[1] = purl[1]
+        rurl = urlunsplit(durl)
+        r1 = requests.get(rurl, headers=headers, data=body)
+        respond = r1.text
+        return respond
+    else:
+        respond = ''
+        print("Bad document request! {}".format(r.text))
+        return respond
+
+def parse_mdlp_xml_doc(doc):
+    myroot = ET.fromstring(doc)
+    items = []
+    for i in myroot:
+        dict = {}
+        dict['class'] = i.tag
+        dict['action_id'] = i.get('action_id')
+        dict['subject_id'] = i.find('subject_id').text
+        dict['operation_date'] = i.find('operation_date').text
+        if i.find('content'):
+            content = {}
+            for j in i.find('content'):
+                content[j.tag] = j.text
+            dict['content'] = content
+        items.append(dict)
+    return items
 
