@@ -70,6 +70,7 @@ def response_parser_313(response_f):
             return i['document_id']
 """
 
+"""
 # Get main document by it id:
 def get_document_main(document_id_f):
     document = f"{api_url}/api/v1/documents/download/{document_id_f}"
@@ -96,21 +97,20 @@ def get_document_main(document_id_f):
     main_f = response.content
     return main_f
     # print(main)
-
-
+"""
+"""
 def doc_342_parser(main_xml):
     root_main = etree.fromstring(main_xml)
     doc_date = root_main.xpath('//documents/release_in_circulation/release_info/doc_date/text()')
     confirmation_num = root_main.xpath('//documents/release_in_circulation/release_info/confirmation_num/text()')
     return [doc_date[0], confirmation_num[0]]
 
-
 def doc_313_parser(main_xml):
     root_main = etree.fromstring(main_xml)
     doc_date = root_main.xpath('//documents/register_product_emission/release_info/doc_date/text()')
     confirmation_num = root_main.xpath('//documents/register_product_emission/release_info/confirmation_num/text()')
     return [doc_date[0], confirmation_num[0]]
-
+"""
 
 def get_metadata_for_342_doc(antares_parent, cases_all):
     # antares_parent = '00959970013008662935'
