@@ -174,15 +174,16 @@ def parse_mdlp_xml_doc(doc):
     items = []
     for i in myroot:
         dict = {}
-        dict['class'] = i.tag
-        dict['action_id'] = i.get('action_id')
-        dict['subject_id'] = i.find('subject_id').text
-        dict['operation_date'] = i.find('operation_date').text
-        if i.find('content'):
-            content = {}
-            for j in i.find('content'):
-                content[j.tag] = j.text
-            dict['content'] = content
+        dict['name'] = i.tag
+        dict['attr'] = i.attrib
+        for j in i:
+            if len(j) != 0:
+                sub = {}
+                for k in j:
+                    sub[k.tag] = k.text
+                dict[j.tag] = sub
+            else:
+                dict[j.tag] = j.text
         items.append(dict)
     return items
 
