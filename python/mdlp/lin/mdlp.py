@@ -1,23 +1,11 @@
-import logging
-import logging.handlers as handlers
-import time
-from logging import Formatter
 import requests
-from datetime import datetime, timedelta
 import os, sys
 import subprocess
 import json
 import base64
 from urllib.parse import urlsplit, urlunsplit
 import xml.etree.ElementTree as ET
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logHandler = handlers.RotatingFileHandler('app.log', maxBytes=50 ** 6, backupCount=10)
-logHandler.setFormatter(Formatter(fmt='[%(asctime)s: %(levelname)s] %(message)s'))
-logHandler.setLevel(logging.DEBUG)
-logger.addHandler(logHandler)
-   
+ 
 def get_mdlp_code(endpoint, clientid, clientsecret, userid, authtype="SIGNED_CODE", target="api/v1/auth"):
     url = "{}/{}".format(endpoint, target)
     jdata = '{"client_id":"{0}", "client_secret":"{1}","user_id":"{2}","auth_type":"{3}"}'
@@ -138,7 +126,7 @@ def get_mdlp_outcome_docs(endpoint, token, count=30, doc_type="", target="api/v1
         print("Bad income documents request! {}".format(r.text))
         return respond
 
-def get_mdlp_document(endpoint, item, token, target="api/v1/documents"):
+def get_mdlp_doc(endpoint, item, token, target="api/v1/documents"):
     url = "{}/{}/{}".format(endpoint, target, item)
     body = {}
     headers = {"Accept": "application/json;charset=UTF-8", "Authorization": "token {}".format(token)}
@@ -166,7 +154,7 @@ def get_mdlp_sgtin_docs(endpoint, item, token, target="api/v1/reestr/sgtin/docum
         print("Bad documents request! {}".format(r.text))
         return respond
 
-def get_mdlp_doc(endpoint, item, token, target="api/v1/documents/download"):
+def download_mdlp_doc(endpoint, item, token, target="api/v1/documents/download"):
     url = "{}/{}/{}".format(endpoint, target, item)
     body = {}
     purl = list(urlsplit(url))
