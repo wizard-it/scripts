@@ -104,13 +104,38 @@ def get_mdlp_sscc_exists(endpoint, item, token, target="api/v1/reestr/sscc/sscc_
     body = {"sscc": item}
     headers = {"Accept": "application/json;charset=UTF-8", "Authorization": "token {}".format(token)}
     r = requests.post(url, headers=headers, json=body)
-    respond = r.text
     if r.status_code == 200:
         respond = json.loads(r.text)
         return respond
     else:
         respond = ''
         print("Bad existed sscc request! {}".format(r.text))
+        return respond
+
+def get_mdlp_income_docs(endpoint, token, count=30, doc_type="", target="api/v1/documents/income"):
+    url = "{}/{}".format(endpoint, target)
+    body = {"filter": {"doc_type": doc_type}, "start_from": 0, "count": count}
+    headers = {"Content-Type": "application/json;charset=UTF-8", "Accept": "application/json;charset=UTF-8", "Authorization": "token {}".format(token)}
+    r = requests.post(url, headers=headers, json=body)
+    if r.status_code == 200:
+        respond = json.loads(r.text)
+        return respond.get('documents')
+    else:
+        respond = ''
+        print("Bad income documents request! {}".format(r.text))
+        return respond
+
+def get_mdlp_outcome_docs(endpoint, token, count=30, doc_type="", target="api/v1/documents/outcome"):
+    url = "{}/{}".format(endpoint, target)
+    body = {"filter": {"doc_type": doc_type}, "start_from": 0, "count": count}
+    headers = {"Content-Type": "application/json;charset=UTF-8", "Accept": "application/json;charset=UTF-8", "Authorization": "token {}".format(token)}
+    r = requests.post(url, headers=headers, json=body)
+    if r.status_code == 200:
+        respond = json.loads(r.text)
+        return respond.get('documents')
+    else:
+        respond = ''
+        print("Bad income documents request! {}".format(r.text))
         return respond
 
 def get_mdlp_document(endpoint, item, token, target="api/v1/documents"):
@@ -141,13 +166,6 @@ def get_mdlp_sgtin_docs(endpoint, item, token, target="api/v1/reestr/sgtin/docum
         print("Bad documents request! {}".format(r.text))
         return respond
 
-def find_mdlp_doc_type(docs, type):
-    result = []
-    for i in docs:
-        if i.get('doc_type') == type:
-            result.append(i.get('document_id'))
-    return result
-
 def get_mdlp_doc(endpoint, item, token, target="api/v1/documents/download"):
     url = "{}/{}/{}".format(endpoint, target, item)
     body = {}
@@ -168,6 +186,13 @@ def get_mdlp_doc(endpoint, item, token, target="api/v1/documents/download"):
         respond = ''
         print("Bad document request! {}".format(r.text))
         return respond
+
+def find_mdlp_doc_type(docs, type):
+    result = []
+    for i in docs:
+        if i.get('doc_type') == type:
+            result.append(i.get('document_id'))
+    return result
 
 def parse_mdlp_xml_doc(doc):
     myroot = ET.fromstring(doc)
