@@ -1,5 +1,5 @@
 import pandas as pd
-from sqlalchemy import create_engine, text as sql_text
+#from sqlalchemy import create_engine, text as sql_text
 import re
 
 #engine_uri = "{}://{}:{}@{}/{}?driver={}".format(config.dialect, config.sqluser, config.sqlpassword, config.sqlhost, config.sqldatabase, config.driver)
