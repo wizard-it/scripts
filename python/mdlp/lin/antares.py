@@ -1,7 +1,6 @@
 import pandas as pd
 from sqlalchemy import create_engine, text as sql_text
 import re
-import config
 
 #engine_uri = "{}://{}:{}@{}/{}?driver={}".format(config.dialect, config.sqluser, config.sqlpassword, config.sqlhost, config.sqldatabase, config.driver)
 #engine01 = create_engine(engine_uri, pool_pre_ping=True)
