@@ -69,12 +69,3 @@ def check_sscc_homogeneous_antares(antares_parent,engine):
         cnt = df.child_level_2_ntin.value_counts()
         # print(cnt)
         return len(cnt.index) == 1
-
-
-
-# anr_par = '00946054690009268406'
-# print(check_sscc_homogeneous_antares(antares_parent=anr_par))
-# sscc_template = r'^00(\d{17})'
-# serial = '00959970013008318238'
-# df = get_sscc_hierarchy(serial)
-# print(df)
