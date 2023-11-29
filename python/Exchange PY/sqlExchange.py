@@ -44,19 +44,30 @@ class SqlExchange:
         # если последний индекс отсутствует (нет данных), то возвращаем пустой массив для обновления, 
         # если индекс -1 (создана новая целевая таблица), то импортируем данные за вчера и сегодня, 
         # иначе получаем данные, созданные после предыдущей записи
-        match lastIndex:
-            case -1:
-                # print(f'Получаем за предыдущий день')
-                query = os.getenv('MSSQL_QUERY_GET_PREV_DAY')
-            case None:
-                # print(f'Нет данных для обновления')
-                cursor.close() 
-                conn.close() 
-                return []
-            case _:
-                # print(f'Получаем новые обновленные элементы')
-                query = os.getenv('MSSQL_QUERY_GET_NEW').format(lastIndex)
-         # Выплняем запрос на получение записей
+
+        if lastIndex == -1:
+            query = os.getenv('MSSQL_QUERY_GET_PREV_DAY')
+        elif lastIndex == None:
+            cursor.close() 
+            conn.close() 
+            return []
+        elif lastIndex is not None:
+            query = os.getenv('MSSQL_QUERY_GET_NEW').format(lastIndex)
+
+        #match lastIndex:
+        #    case -1:
+        #        # print(f'Получаем за предыдущий день')
+        #        query = os.getenv('MSSQL_QUERY_GET_PREV_DAY')
+        #    case None:
+        #        # print(f'Нет данных для обновления')
+        #        cursor.close() 
+        #        conn.close() 
+        #        return []
+        #   case _:
+        #       # print(f'Получаем новые обновленные элементы')
+        #      query = os.getenv('MSSQL_QUERY_GET_NEW').format(lastIndex)
+        
+        # Выплняем запрос на получение записей
         cursor.execute(query)
         # Передаем в переменную полученый массив с данными
         records = cursor.fetchall()
@@ -96,13 +107,22 @@ class SqlExchange:
 
     # Подключение к БД в зависимости от типа подключения
     def getConnect(self, connType):
-        match connType:
-            case 'MSSQL':
+        if connType == 'MSSQL':
                 return self.connectToMSSQL()
-            case 'PostgreSQL':
+        elif connType == 'PostgreSQL':
                 conn = self.connectToPostgreSQL()
                 conn.autocommit = True
                 return conn
+        
+        print('Error. Не корректно выбран тип БД\n')
+
+        #match connType:
+        #    case 'MSSQL':
+        #        return self.connectToMSSQL()
+        #    case 'PostgreSQL':
+        #        conn = self.connectToPostgreSQL()
+        #        conn.autocommit = True
+        #        return conn
 
     # Подключение к MSSQL
     def connectToMSSQL(self):
@@ -115,7 +135,7 @@ class SqlExchange:
                 PWD={os.getenv('MSSQL_CONNECTION_PASS')};
                 TrustServerCertificate={os.getenv('MSSQL_CONNECTION_TSR')}''')
         except:
-            print('Error. Не получилось подключиться к БД\n')
+            print('Error. Не получилось подключиться к БД (MSSQL)\n')
 
     # Подключение к PostgreSQL
     def connectToPostgreSQL(self):
@@ -127,4 +147,4 @@ class SqlExchange:
                 password=os.getenv('POSTGRESQL_CONNECTION_PASS'),
                 port=os.getenv('POSTGRESQL_CONNECTION_PORT'))
         except:
-            print('Error. Не получилось подключиться к БД\n')
+            print('Error. Не получилось подключиться к БД (PostgreSQL)\n')
