@@ -5,6 +5,9 @@ import json
 import base64
 from urllib.parse import urlsplit, urlunsplit
 import xml.etree.ElementTree as ET
+import datetime
+import uuid
+
  
 def get_mdlp_code(endpoint, clientid, clientsecret, userid, authtype="SIGNED_CODE", target="api/v1/auth"):
     url = "{}/{}".format(endpoint, target)
@@ -200,3 +203,38 @@ def parse_mdlp_xml_doc(doc):
         items.append(dict)
     return items
 
+def upload_mdlp_doc(endpoint, doc, token, certhash, target="api/v1/documents/send"):
+    message_bytes = doc.encode("UTF-8")
+    base64_bytes = base64.b64encode(message_bytes)
+    base64_doc = base64_bytes.decode("UTF-8")
+    try:
+        result = subprocess.run(["certmgr", "-list", "-thumbprint", certhash], stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
+        return_code = result.returncode
+    except:
+        return_code = 1
+    if return_code != 0:
+        print('Certificate is wrong or not found!')
+        return 1
+    with open('doc.txt', 'w') as file:
+        file.write(doc)
+    try:
+        result = subprocess.run(["csptest", "-sfsign", "-sign", "-in", "doc.txt", "-out", "doc.txt.sig", "-my", certhash, "-detached", "-base64", "-add"], stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
+        return_code = result.returncode
+    except:
+        return_code = 1
+    if return_code != 0:
+        print('Sign generation error!')
+        return ''
+    with open('doc.txt.sig', 'r') as file:
+        data = file.read()
+        base64_sign = data.replace('\n','')
+    url = "{}/{}".format(endpoint, target)
+    body = {"document": base64_doc, "sign": base64_sign, "request_id": str(uuid.uuid4()), "bulk_processing": "false"}
+    headers = {"Content-Type": "application/json;charset=UTF-8", "Accept": "application/json;charset=UTF-8", "Authorization": "token {}".format(token)}
+    r = requests.post(url, headers=headers, json=body)
+    if r.status_code == 200:
+        respond = json.loads(r.text)
+        return respond.get('document_id')
+    else:
+        print("Bad upload request! {}".format(r.text))
+        return 1
