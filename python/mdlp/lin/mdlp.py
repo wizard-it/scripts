@@ -1,3 +1,5 @@
+import time
+from datetime import datetime, timedelta
 import requests
 import os, sys
 import subprocess
@@ -5,9 +7,8 @@ import json
 import base64
 from urllib.parse import urlsplit, urlunsplit
 import xml.etree.ElementTree as ET
-import datetime
 import uuid
-
+from lxml import etree as ET
  
 def get_mdlp_code(endpoint, clientid, clientsecret, userid, authtype="SIGNED_CODE", target="api/v1/auth"):
     url = "{}/{}".format(endpoint, target)
@@ -26,7 +27,7 @@ def get_mdlp_code(endpoint, clientid, clientsecret, userid, authtype="SIGNED_COD
         print("Bad code request! {}".format(r.text))
         return respond
 
-def get_sign_csp(code, certhash):
+def gen_sign_csp(code, certhash):
     try:
         result = subprocess.run(["certmgr", "-list", "-thumbprint", certhash], stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
         return_code = result.returncode
@@ -68,7 +69,7 @@ def get_mdlp_token(endpoint, code, signature, target="api/v1/token"):
 
 def gen_mdlp_token(endpoint, clientid, clientsecret, userid, thumbprint):
     code = get_mdlp_code(endpoint, clientid, clientsecret, userid)
-    sign = get_sign_csp(code, thumbprint)
+    sign = gen_sign_csp(code, thumbprint)
     token = get_mdlp_token(endpoint, code, sign)
     return token
 
@@ -194,14 +195,40 @@ def parse_mdlp_xml_doc(doc):
         dict['attr'] = i.attrib
         for j in i:
             if len(j) != 0:
-                sub = {}
+                sum = []
                 for k in j:
+                    sub = {}
                     sub[k.tag] = k.text
-                dict[j.tag] = sub
+                    sum.append(sub)
+                dict[j.tag] = sum
             else:
                 dict[j.tag] = j.text
-        items.append(dict)
-    return items
+    return dict
+
+def parse_mdlp_doc_content(items):
+    if type(items) is not list:
+        print("ERROR content parsing: Items must be a list.")
+        return None
+    sum = {}
+    sgtins = []
+    ssccs = []
+    unknowns = []
+    for i in items:
+        for key in i:
+            match key:
+                case 'sgtin':
+                    v = i.get('sgtin')
+                    sgtins.append(v)
+                case 'sscc':
+                    v = i.get('sscc')
+                    ssccs.append(v)
+                case _:
+                    v = i.get(key)
+                    unknowns.append(v)
+    sum['sgtins'] = sgtins
+    sum['ssccs'] = ssccs
+    sum['unknowns'] = unknowns
+    return sum
 
 def upload_mdlp_doc(endpoint, doc, token, certhash, target="api/v1/documents/send"):
     message_bytes = doc.encode("UTF-8")
@@ -238,3 +265,68 @@ def upload_mdlp_doc(endpoint, doc, token, certhash, target="api/v1/documents/sen
     else:
         print("Bad upload request! {}".format(r.text))
         return 1
+
+def gen_mdlp_msg(action, items, itemtype, subject, parent=None, nsmap={'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}):
+    now_tz = datetime.today() - timedelta(hours=3)
+    operation_date = now_tz.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+#   913 - Withdrawal from group packing
+#   914 - Inclusion in group packing
+    match action:
+        case 913:
+            if type(items) is not list:
+                print("ERROR doc generation: Items must be a list.")
+                return None
+            if len(items) < 1:
+                print("ERROR doc generation: one or more Items is required.")
+                return None
+            if len(subject) < 1:
+                print("ERROR doc generation: Subject is required.")
+                return None
+            if itemtype not in ['sscc','sgtin']:
+                print("ERROR doc generation: Itemtype must be one of (sscc, sgtin).")
+                return None
+            env = ET.Element('documents', version="1.36", nsmap=nsmap)
+            body = ET.SubElement(env, 'unit_extract', action_id="913")
+            child_1 = ET.SubElement(body, 'subject_id')
+            child_1.text = subject
+            child_2 = ET.SubElement(body, 'operation_date')
+            child_2.text = operation_date
+            child_3 = ET.SubElement(body, 'content')
+            for i in items:
+                с = ET.SubElement(child_3, itemtype)
+                с.text = i
+            msg = (ET.tostring(env, pretty_print=True)).decode("UTF-8")
+            return msg
+        case 914:
+            if type(items) is not list:
+                print("ERROR doc generation: Items must be a list.")
+                return None
+            if len(items) < 1:
+                print("ERROR doc generation: one or more Items is required.")
+                return None
+            if len(subject) < 1:
+                print("ERROR doc generation: Subject is required.")
+                return None
+            if itemtype not in ['sscc','sgtin']:
+                print("ERROR doc generation: Itemtype must be one of (sscc, sgtin).")
+                return None
+            if not parent:
+                print("ERROR doc generation: Parent is required.")
+                return None
+            env = ET.Element('documents', version="1.36", nsmap=nsmap)
+            body = ET.SubElement(env, 'unit_append', action_id="914")
+            child_1 = ET.SubElement(body, 'subject_id')
+            child_1.text = subject
+            child_2 = ET.SubElement(body, 'operation_date')
+            child_2.text = operation_date
+            child_3 = ET.SubElement(body, 'sscc')
+            child_3.text = parent
+            child_4 = ET.SubElement(body, 'content')
+            for i in items:
+                с = ET.SubElement(child_4, itemtype)
+                с.text = i
+            msg = (ET.tostring(env, pretty_print=True)).decode("UTF-8")
+            return msg
+        case _:
+            print("ERROR doc generation: unknown Action number.")
+            return None

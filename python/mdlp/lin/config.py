@@ -13,6 +13,10 @@ target_dir = "{}\\complete".format(work_dir)
 log_dir = "{}\\log".format(work_dir)
 
 user_cert_thumbprint = '559F01F3A05A8505B4C18968E4570FC51A3FC196'
+subject_id = "00000000223912"
+#subject_id = "00000000114590"
+nsmap1 = {'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}
+nsmap = nsmap1
 
 email_from = 'checker@shv-vapp05.ru'
 # email_to = the list of all recipients' email addresses
