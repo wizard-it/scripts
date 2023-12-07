@@ -266,12 +266,121 @@ def upload_mdlp_doc(endpoint, doc, token, certhash, target="api/v1/documents/sen
         print("Bad upload request! {}".format(r.text))
         return 1
 
-def gen_mdlp_msg(action, items, itemtype, subject, parent=None, nsmap={'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}):
+def gen_mdlp_docinfo(docnum, confirmnum, year, month, day, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
+    date = datetime(year, month, day, hour, minute, second, microsecond, tzinfo)
+    doc_date=date.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+    sum = {'doc_date': doc_date, 'doc_num': docnum, 'confirmation_num': confirmnum}
+    return sum
+
+def gen_mdlp_msg(action, items, itemtype, subject, parent=None, docinfo=None, nsmap={'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}):
     now_tz = datetime.today() - timedelta(hours=3)
     operation_date = now_tz.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+#   313 - Medicine production
+#   342 - Putting medicine into circulation within the territory of the Rusland
+#   911 - Aggregation
 #   913 - Withdrawal from group packing
 #   914 - Inclusion in group packing
     match action:
+        case 313:
+            if type(items) is not list:
+                print("ERROR doc generation: Items must be a list.")
+                return None
+            if len(items) < 1:
+                print("ERROR doc generation: one or more Items is required.")
+                return None
+            if len(subject) < 1:
+                print("ERROR doc generation: Subject is required.")
+                return None
+            if itemtype not in ['sscc','sgtin']:
+                print("ERROR doc generation: Itemtype must be one of (sscc, sgtin).")
+                return None
+            if type(docinfo) is not dict:
+                print("ERROR doc generation: Document info must be a dict.")
+                return None
+            env = ET.Element('documents', version="1.36", nsmap=nsmap)
+            body = ET.SubElement(env, 'register_product_emission', action_id="313")
+            child_1 = ET.SubElement(body, 'subject_id')
+            child_1.text = subject
+            child_2 = ET.SubElement(body, 'operation_date')
+            child_2.text = operation_date
+            child_3 = ET.SubElement(body, 'release_info')
+            doc_date = ET.SubElement(child_3, 'doc_date')
+            doc_date.text = docinfo.get('doc_date')
+            doc_num = ET.SubElement(child_3, 'doc_num')
+            doc_num.text = docinfo.get('doc_num')
+            confirm_num = ET.SubElement(child_3, 'confirmation_num')
+            confirm_num.text = docinfo.get('confirm_num')
+            child_4 = ET.SubElement(body, 'signs')
+            for i in items:
+                с = ET.SubElement(child_4, itemtype)
+                с.text = i
+            msg = (ET.tostring(env, pretty_print=True)).decode("UTF-8")
+            return msg
+        case 342:
+            if type(items) is not list:
+                print("ERROR doc generation: Items must be a list.")
+                return None
+            if len(items) < 1:
+                print("ERROR doc generation: one or more Items is required.")
+                return None
+            if len(subject) < 1:
+                print("ERROR doc generation: Subject is required.")
+                return None
+            if itemtype not in ['sscc','sgtin']:
+                print("ERROR doc generation: Itemtype must be one of (sscc, sgtin).")
+                return None
+            if type(docinfo) is not dict:
+                print("ERROR doc generation: Document info must be a dict.")
+                return None
+            env = ET.Element('documents', version="1.36", nsmap=nsmap)
+            body = ET.SubElement(env, 'release_in_circulation', action_id="342")
+            child_1 = ET.SubElement(body, 'subject_id')
+            child_1.text = subject
+            child_2 = ET.SubElement(body, 'operation_date')
+            child_2.text = operation_date
+            child_3 = ET.SubElement(body, 'release_info')
+            doc_date = ET.SubElement(child_3, 'doc_date')
+            doc_date.text = docinfo.get('doc_date')
+            doc_num = ET.SubElement(child_3, 'doc_num')
+            doc_num.text = docinfo.get('doc_num')
+            confirm_num = ET.SubElement(child_3, 'confirmation_num')
+            confirm_num.text = docinfo.get('confirm_num')
+            child_4 = ET.SubElement(body, 'signs')
+            for i in items:
+                с = ET.SubElement(child_4, itemtype)
+                с.text = i
+            msg = (ET.tostring(env, pretty_print=True)).decode("UTF-8")
+            return msg
+        case 911:
+            if type(items) is not list:
+                print("ERROR doc generation: Items must be a list.")
+                return None
+            if len(items) < 1:
+                print("ERROR doc generation: one or more Items is required.")
+                return None
+            if len(subject) < 1:
+                print("ERROR doc generation: Subject is required.")
+                return None
+            if itemtype not in ['sscc','sgtin']:
+                print("ERROR doc generation: Itemtype must be one of (sscc, sgtin).")
+                return None
+            if not parent:
+                print("ERROR doc generation: Parent is required.")
+                return None
+            env = ET.Element('documents', version="1.36", nsmap=nsmap)
+            body = ET.SubElement(env, 'unit_pack', action_id="911")
+            child_1 = ET.SubElement(body, 'subject_id')
+            child_1.text = subject
+            child_2 = ET.SubElement(body, 'operation_date')
+            child_2.text = operation_date
+            child_3 = ET.SubElement(body, 'sscc')
+            child_3.text = parent
+            child_4 = ET.SubElement(body, 'content')
+            for i in items:
+                с = ET.SubElement(child_4, itemtype)
+                с.text = i
+            msg = (ET.tostring(env, pretty_print=True)).decode("UTF-8")
+            return msg
         case 913:
             if type(items) is not list:
                 print("ERROR doc generation: Items must be a list.")
