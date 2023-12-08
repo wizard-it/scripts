@@ -23,9 +23,8 @@ def get_mdlp_code(endpoint, clientid, clientsecret, userid, authtype="SIGNED_COD
         respond = data.get('code')
         return respond
     else:
-        respond = ''
         print("Bad code request! {}".format(r.text))
-        return respond
+        return None
 
 def gen_sign_csp(code, certhash):
     try:
@@ -45,7 +44,7 @@ def gen_sign_csp(code, certhash):
         return_code = 1
     if return_code != 0:
         print('Sign generation error!')
-        return ''
+        return None
     with open('code.txt.sig', 'r') as file:
         data = file.read()
         sign = data.replace('\n','')
@@ -62,16 +61,29 @@ def get_mdlp_token(endpoint, code, signature, target="api/v1/token"):
     respond = json.loads(r.text)
     if "token" in respond:
         token = respond.get('token')
+        return token
     else:
-        token = ''
         print("Bad token request! Message: {}".format(r.text))
-    return token
+        return None
 
 def gen_mdlp_token(endpoint, clientid, clientsecret, userid, thumbprint):
     code = get_mdlp_code(endpoint, clientid, clientsecret, userid)
     sign = gen_sign_csp(code, thumbprint)
     token = get_mdlp_token(endpoint, code, sign)
     return token
+
+def get_mdlp_sscc_hier(endpoint, item, token, target="api/v1/reestr/sscc"):
+    url = "{}/{}/{}/hierarchy".format(endpoint, target, item)
+    params = {}
+    body = {}
+    headers = {"Accept": "application/json;charset=UTF-8", "Authorization": "token {}".format(token)}
+    r = requests.get(url, headers=headers, data=body, params=params)
+    if r.status_code == 200:
+        respond = json.loads(r.text)
+        return respond
+    else:
+        print("Bad hierarchy request! {}".format(r.text))
+        return None
 
 def get_mdlp_sscc_full_hier(endpoint, item, token, target="api/v1/reestr/sscc/full-hierarchy"):
     url = "{}/{}".format(endpoint, target)
@@ -83,26 +95,23 @@ def get_mdlp_sscc_full_hier(endpoint, item, token, target="api/v1/reestr/sscc/fu
         respond = json.loads(r.text)
         return respond
     else:
-        respond = ''
         print("Bad hierarchy request! {}".format(r.text))
-        return respond
+        return None
 
-def get_mdlp_sscc_exists(endpoint, item, token, target="api/v1/reestr/sscc/sscc_check"):
+def get_mdlp_sscc_exists(endpoint, items, token, target="api/v1/reestr/sscc/sscc_check"):
     url = "{}/{}".format(endpoint, target)
-    if not isinstance(item, list):
-        respond = ''
+    if not isinstance(items, list):
         print("Item type must be list! Skipping request.")
-        return respond
-    body = {"sscc": item}
+        return None
+    body = {"sscc": items}
     headers = {"Accept": "application/json;charset=UTF-8", "Authorization": "token {}".format(token)}
     r = requests.post(url, headers=headers, json=body)
     if r.status_code == 200:
         respond = json.loads(r.text)
         return respond
     else:
-        respond = ''
         print("Bad existed sscc request! {}".format(r.text))
-        return respond
+        return None
 
 def get_mdlp_income_docs(endpoint, token, count=30, doc_type="", target="api/v1/documents/income"):
     url = "{}/{}".format(endpoint, target)
@@ -113,9 +122,8 @@ def get_mdlp_income_docs(endpoint, token, count=30, doc_type="", target="api/v1/
         respond = json.loads(r.text)
         return respond.get('documents')
     else:
-        respond = ''
         print("Bad income documents request! {}".format(r.text))
-        return respond
+        return None
 
 def get_mdlp_outcome_docs(endpoint, token, count=30, doc_type="", target="api/v1/documents/outcome"):
     url = "{}/{}".format(endpoint, target)
@@ -126,9 +134,8 @@ def get_mdlp_outcome_docs(endpoint, token, count=30, doc_type="", target="api/v1
         respond = json.loads(r.text)
         return respond.get('documents')
     else:
-        respond = ''
         print("Bad income documents request! {}".format(r.text))
-        return respond
+        return None
 
 def get_mdlp_doc(endpoint, item, token, target="api/v1/documents"):
     url = "{}/{}/{}".format(endpoint, target, item)
@@ -139,9 +146,8 @@ def get_mdlp_doc(endpoint, item, token, target="api/v1/documents"):
         respond = json.loads(r.text)
         return respond
     else:
-        respond = ''
         print("Bad document request! {}".format(r.text))
-        return respond
+        return None
 
 def get_mdlp_sgtin_docs(endpoint, item, token, target="api/v1/reestr/sgtin/documents"):
     url = "{}/{}".format(endpoint, target)
@@ -154,9 +160,23 @@ def get_mdlp_sgtin_docs(endpoint, item, token, target="api/v1/reestr/sgtin/docum
         respond = data.get('entries')
         return respond
     else:
-        respond = ''
         print("Bad documents request! {}".format(r.text))
-        return respond
+        return None
+
+def search_mdlp_sgtins(endpoint, items, token, target="api/v1/reestr/sgtin/public/sgtins-by-list"):
+    if type(items) is not list:
+        print("ERROR search sgtins: Items must be a list.")
+        return None
+    url = "{}/{}".format(endpoint, target)
+    body = {"filter": {"sgtins": items}}
+    headers = {"Content-Type": "application/json;charset=UTF-8", "Accept": "application/json;charset=UTF-8", "Authorization": "token {}".format(token)}
+    r = requests.post(url, headers=headers, json=body)
+    if r.status_code == 200:
+        respond = json.loads(r.text)
+        return respond.get('entries')
+    else:
+        print("Bad search request! {}".format(r.text))
+        return None
 
 def download_mdlp_doc(endpoint, item, token, target="api/v1/documents/download"):
     url = "{}/{}/{}".format(endpoint, target, item)
@@ -175,9 +195,8 @@ def download_mdlp_doc(endpoint, item, token, target="api/v1/documents/download")
         respond = r1.text
         return respond
     else:
-        respond = ''
         print("Bad document request! {}".format(r.text))
-        return respond
+        return None
 
 def find_mdlp_doc_type(docs, type):
     result = []
@@ -214,6 +233,9 @@ def parse_mdlp_doc_content(items):
     ssccs = []
     unknowns = []
     for i in items:
+        if type(i) is not dict:
+            print("WARNING wrong item: Parsed Item must be a dict. Skipped...")
+            continue
         for key in i:
             match key:
                 case 'sgtin':
@@ -222,13 +244,23 @@ def parse_mdlp_doc_content(items):
                 case 'sscc':
                     v = i.get('sscc')
                     ssccs.append(v)
-                case _:
+                case _: 
                     v = i.get(key)
                     unknowns.append(v)
     sum['sgtins'] = sgtins
     sum['ssccs'] = ssccs
     sum['unknowns'] = unknowns
     return sum
+
+def parse_mdlp_parent(item):
+    if type(item) is not dict:
+        print("ERROR parent parsing: Item must be a dict.")
+        return None
+    up = item.get('up')
+    if up:
+        if len(up) > 1:
+            return up[1].get('sscc')
+    return None
 
 def upload_mdlp_doc(endpoint, doc, token, certhash, target="api/v1/documents/send"):
     message_bytes = doc.encode("UTF-8")
@@ -264,7 +296,7 @@ def upload_mdlp_doc(endpoint, doc, token, certhash, target="api/v1/documents/sen
         return respond.get('document_id')
     else:
         print("Bad upload request! {}".format(r.text))
-        return 1
+        return None
 
 def gen_mdlp_docinfo(docnum, confirmnum, year, month, day, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
     date = datetime(year, month, day, hour, minute, second, microsecond, tzinfo)
