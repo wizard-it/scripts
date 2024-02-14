@@ -3,7 +3,7 @@
 export PATH="/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin"
 
 # Destiny folder where backups are stored
-DEST=/opt/backup/mongo
+DEST=/usr/local/backup/mongo
 
 CURRDATE=$(date +"%F")
 
