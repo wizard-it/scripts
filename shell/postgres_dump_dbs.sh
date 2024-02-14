@@ -12,10 +12,10 @@ BACKUP_USER=
 HOSTNAME="localhost"
 
 # Optional username to connect to database as.  Will default to "postgres" if none specified.
-USERNAME="backup"
+USERNAME="postgres"
 
 # Password for network using
-PASS="$(cat /usr/local/etc/sqlpass)"
+#PASS="$(cat /usr/local/etc/sqlpass)"
 
 # This dir will be created if it doesn't exist.  This must be writable by the user the script is
 # running as.
