@@ -1,6 +1,7 @@
 #!/bin/bash
 
 export PATH="/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin"
+export HOME="/root"
 
 # Destiny folder where backups are stored
 DEST=/usr/local/backup/mysql
