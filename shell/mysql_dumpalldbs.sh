@@ -22,7 +22,7 @@ DATABASES=$(mysql -h $HOSTNAME -u $USER -e "SHOW DATABASES;" | tr -d "| " | grep
 for db in $DATABASES; do
   FILE="${DEST}/$db.sql.gz"
   [ -f $FILE ] && mv "$FILE" "${FILE}.old"
-  mysqldump --single-transaction --set-gtid-purged=OFF --routines --quick -h $HOSTNAME -u $USER -B $db | gzip > "$FILE"
+  mysqldump --single-transaction --routines --quick -h $HOSTNAME -u $USER -B $db | gzip > "$FILE"
 #  chown bacula:disk "$FILE"
   rm -f "${FILE}.old"
 done
