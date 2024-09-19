@@ -1,12 +1,5 @@
-(Get-Host).UI.RawUI.ForegroundColor = "DarkYellow"
-(Get-Host).UI.RawUI.BackgroundColor = "Black"
 (Get-Host).UI.RawUI.CursorSize = 10
-(Get-Host).UI.RawUI.WindowTitle = $($(Get-Host).UI.RawUI.WindowTitle) + " :: " + $env:USERNAME + "@" + "$env:COMPUTERNAME"
-
-if (Get-Module -ListAvailable -Name cmatrix) {
-    Set-ScreenSaverTimeout -Seconds 120
-    Write-Host "Send Enable-ScreenSaver to run screensaver application"
-}
+(Get-Host).UI.RawUI.WindowTitle = $($(Get-Host).UI.RawUI.WindowTitle) + " :: " + $env:USERNAME
 
 function ConvertTo-Encoding ([string]$From, [string]$To){  
     Begin{  
@@ -20,4 +13,9 @@ function ConvertTo-Encoding ([string]$From, [string]$To){
     }  
 }
 
-Write-Host -ForegroundColor Green "Personal settings have been loaded"; Write-Host
+function prompt {
+    [Security.Principal.WindowsPrincipal]$user = [Security.Principal.WindowsIdentity]::GetCurrent();
+    'PS [' + $((Get-ChildItem  Env:Computername).Value) + '] ' + '(' + $((Get-Location).Path.Split("\")[-1]) + ') > '
+}
+
+Remove-Module PSReadline
