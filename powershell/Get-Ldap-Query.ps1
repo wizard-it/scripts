@@ -9,7 +9,6 @@ $Searcher.Filter = '(&(objectClass=user)(!userAccountControl=514)(!userAccountCo
 $res = $Searcher.FindAll()  | Sort-Object path
 foreach ($usrTmp in $res)
 {
-  
   Write-Host $usrTmp.Properties["cn"]
 }
 Write-Host "------------------------------"
