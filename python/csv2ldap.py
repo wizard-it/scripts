@@ -4,12 +4,15 @@ import csv
 import time
 import ldap3
 import logging
+import xml.etree.ElementTree as ET
 from hashlib import md5
 from ast import literal_eval
 from argparse import ArgumentParser
 from configparser import RawConfigParser
 from logging.handlers import RotatingFileHandler
 from ldap3.core.exceptions import LDAPSocketOpenError
+
+
 
 
 def read_config(path):
@@ -402,6 +405,9 @@ def run_update(conn, data_file, data_header):
 
             # Running update
             if update_dict:
+#                if DEBUG:
+#                    for k, v in update_dict.items():
+#                        write_log(LOGGER, 'DEBUG', "Update dict attr '{}' = '{}'".format(k, v))
                 upd_res, upd_msg = update_user(conn, user_dn, update_dict)
                 if upd_res:
                     write_log(LOGGER, 'INFO', '{} : {} : {}'.format(samname, ', '.join(update_dict.keys()), upd_msg))
@@ -414,6 +420,49 @@ def run_update(conn, data_file, data_header):
         print('{}: Task has been completed, waiting {} seconds'.format(time.strftime('%d.%m.%Y %X'), WAIT_SEC))
     else:
         print('{}: Task has been completed'.format(time.strftime('%d.%m.%Y %X')))
+# create dictionary from XML
+def create_userlist(file1cxml):
+    tree = ET.parse(file1cxml)
+    root = tree.getroot()
+    for employeeinfo in root.findall("Объект[@Тип='СправочникСсылка.ИнформацияОСотрудниках']"):
+        
+        if employeeinfo.attrib['Тип']=='СправочникСсылка.ИнформацияОСотрудниках' and employeeinfo.attrib['ИмяПравила']=='ИнформацияОСотрудниках':
+            usercode=''
+            for propertyofemployee in employeeinfo.findall('.Ссылка/Свойство'):
+                if propertyofemployee.attrib['Имя']=='Код':
+                    codeofemployee=propertyofemployee.findall('Значение')
+                    usercode=codeofemployee[0].text
+                for listofmanagers in employeeinfo.findall("./ТабличнаяЧасть[@Имя='Руководители']"):
+                    #print(child5[0].text)
+                    managerscode=''
+                    for propertyofmanagers in listofmanagers.findall('./Запись/Свойство'):
+                        if propertyofmanagers.attrib['Имя']=='Код':
+                            codeofmanager=propertyofmanagers.findall('Значение')
+                            managerscode=managerscode + codeofmanager[0].text+','
+                userlist[usercode]=managerscode[:-1]
+
+
+
+
+# update file csv with using data from hiracical 1C
+def process_csv_file(targetfile,sourcefile,file1cxml):
+    fieldnames=['employeeid','sn','givenName','middleName','title','division','department','extensionAttribute4','physicalDeliveryOfficeName','telephoneNumber','mobile','manager','extensionAttribute7','extensionAttribute9','extensionAttribute10']
+    create_userlist(file1cxml)
+    with open(targetfile, "w", newline="", encoding="utf_8_sig") as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames,delimiter = ";")
+        writer.writeheader()
+    with open(sourcefile, encoding="utf_8_sig") as csvfile:
+        reader = csv.DictReader(csvfile,delimiter = ";")
+        for row in reader:
+            with open(targetfile, "a", newline="", encoding="utf_8_sig") as file:
+                writer = csv.DictWriter(file, fieldnames=fieldnames,delimiter = ";")
+                codesofmanagers=userlist.get(row['employeeid'])
+                if   codesofmanagers is not None:
+                        if len(codesofmanagers.split(","))==2:
+                            row['manager']=codesofmanagers.split(",",1)[0]
+                        row['extensionAttribute10']=codesofmanagers
+                writer.writerow(row)
+
 
 
 if __name__ == '__main__':
@@ -468,8 +517,11 @@ if __name__ == '__main__':
 
     # CSV section
     CSV_FILE = config.get('CSV', 'CsvPath')
+    CSV_IN_FILE = config.get('CSV', 'CsvInPath')
+    XML_FILE = config.get('CSV', 'XmlPath')
     CSV_DELIM = config.get('CSV', 'Delimiter', fallback=';')
     CSV_ENCODING = config.get('CSV', 'Encoding', fallback='utf-8')
+    userlist = dict()
 
     # EXCEPTION section
     if config.has_section('EXCEPTIONS') and config.items('EXCEPTIONS'):
@@ -501,6 +553,10 @@ if __name__ == '__main__':
         init_md5 = ''
         write_log(LOGGER, 'INFO', 'Starting csv2ldap on {}'.format(COMPUTERNAME))
         print('\n{}: csv2ldap started.\nPress CTRL-C to stop it...'.format(time.strftime(DATE_FMT)))
+        try:
+            process_csv_file(CSV_FILE, CSV_IN_FILE, XML_FILE)
+        except:
+            write_log(LOGGER, 'ERROR', "Error during preprocess file")
         while True:
             try:
                 try:
@@ -527,6 +583,10 @@ if __name__ == '__main__':
     else:
         write_log(LOGGER, 'INFO', 'Starting csv2ldap at {} on {}'.format(time.strftime(DATE_FMT), COMPUTERNAME))
         print('{}: One time update task started'.format(time.strftime(DATE_FMT)))
+        try:
+            process_csv_file(CSV_FILE, CSV_IN_FILE, XML_FILE)
+        except:
+            write_log(LOGGER, 'ERROR', "Error during preprocess file")
         csv_stat, csv_header = check_csv(CSV_FILE)
         if csv_stat is True:
             with ldap_connect(LDAP_SERVER, LDAP_USER, LDAP_PASSWORD) as ldap_conn:
